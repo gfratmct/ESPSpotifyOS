@@ -2,53 +2,14 @@
 
 #include "esp_log.h"
 #include "esp_system.h"
-#include "lcd.h"
 #include "nvs_flash.h"
 #include "ui.h"
-#include "wifi.h"
-#include "http.h"
+
+#include "display/lcd.h"
+#include "connectivity/wifi.h"
+#include "server/http.h"
 
 static const char *TAG = "main";
-
-// routes
-static esp_err_t handle_submit(httpd_req_t *req)
-{
-    // write a simple hello world for now
-    const char *resp_str = "Hello, world!";
-    httpd_resp_set_type(req, "text/plain");
-    return httpd_resp_send(req, resp_str, strlen(resp_str));
-}
-
-void turn_on_webserver(void) {
-    webserver_t *webserver = webserver_create(8080);
-    ESP_LOGI(TAG, "Webserver instance created");
-
-    if (!webserver) {
-        ESP_LOGE(TAG, "Webserver instance not found");
-        return;
-    }
-
-    if (webserver_start(webserver) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to start webserver");
-        return;
-    }
-
-    route_get_path(webserver, "/submit", handle_submit);
-
-    webserver_t *ws_instance = webserver_get_instance();
-    if (!ws_instance) {
-        ESP_LOGE(TAG, "Failed to get webserver instance");
-        return;
-    }
-}
-
-void turn_off_webserver(void) {
-    webserver_t *ws_instance = webserver_get_instance();
-    if (ws_instance) {
-        webserver_stop(ws_instance);
-        webserver_destroy(ws_instance);
-    }
-}
 
 void app_main(void)
 {
@@ -75,7 +36,10 @@ void app_main(void)
     } else {
         ESP_LOGI(TAG, "Wifi connected successfully!");
         // and then setup and start webserver
-        turn_on_webserver();
+        webserver_t *webserver = webserver_create(8080);
+        if (webserver_start(webserver) != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to start webserver");
+        }
     }
 
     /* Start rendering only after the whole UI tree exists. */
