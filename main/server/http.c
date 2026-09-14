@@ -7,13 +7,18 @@
 
 static webserver_t *s_webserver_instance = NULL;
 
+extern const uint8_t submit_html_start[] asm("_binary_submit_html_start");
+extern const uint8_t submit_html_end[]   asm("_binary_submit_html_end");
+
+
 // routes
+
 static esp_err_t handle_submit(httpd_req_t *req)
 {
     // write a simple hello world for now
-    const char *resp_str = "Hello, world!";
-    httpd_resp_set_type(req, "text/plain");
-    return httpd_resp_send(req, resp_str, strlen(resp_str));
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, (const char *)submit_html_start,
+                        submit_html_end - submit_html_start);
 }
 
 webserver_t *webserver_get_instance(void) {

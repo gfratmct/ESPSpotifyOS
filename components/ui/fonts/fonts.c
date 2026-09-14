@@ -11,6 +11,7 @@
 
 const lv_font_t* ui_get_font_by_name(const char* name) {
     if (name == NULL) return NULL;
-    /* No custom fonts */
+    if (strcmp(name, "font_dm_sans_14") == 0) return &font_dm_sans_14;
+    if (strcmp(name, "font_dm_sans_700_16") == 0) return &font_dm_sans_700_16;
     return NULL;
 }

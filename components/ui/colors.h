@@ -11,6 +11,7 @@ extern "C" {
 // Common colors
 extern const uint32_t common_000000;
 extern const uint32_t common_111111;
+extern const uint32_t common_1db954;
 extern const uint32_t common_ffffff;
 
 #ifdef __cplusplus

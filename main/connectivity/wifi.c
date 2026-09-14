@@ -54,6 +54,11 @@ esp_err_t wifi_start(void)
         return ESP_ERR_NO_MEM;
     }
 
+    app_state_t *state = get_app_state();
+    if (state == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
@@ -66,20 +71,18 @@ esp_err_t wifi_start(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = CONFIG_ESP_WIFI_SSID,
-            .password = CONFIG_ESP_WIFI_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
+    // Zero-initialize wifi_config and copy credentials from state
+    wifi_config_t wifi_config = {0};
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    strncpy((char *)wifi_config.sta.ssid, (const char *)state->wifi_ssid, sizeof(wifi_config.sta.ssid) - 1);
+    strncpy((char *)wifi_config.sta.password, (const char *)state->wifi_password, sizeof(wifi_config.sta.password) - 1);
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
-    // ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); // disable power save mode for better performance
 
     s_started = true;
-    ESP_LOGI(TAG, "wifi station started");
+    ESP_LOGI(TAG, "wifi station started with SSID: %s", wifi_config.sta.ssid);
     return ESP_OK;
 }
 

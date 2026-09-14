@@ -3,13 +3,15 @@ set(COMPONENT_SRCS
   "actions/app_actions.c"
   "connectivity/wifi.c"
   "data/settings.c"
+  "data/state.c"
   "display/lcd.c"
   "server/http.c"
   "utils/http.c"
+  "utils/storage.c"
 )
 
 set(COMPONENT_EMBED_TXTFILES
-  "web/index.html"
+  "web/submit.html"
 )
 
 set(CORE_DEPS
@@ -55,7 +57,7 @@ idf_component_register(
   SRCS ${COMPONENT_SRCS}
   INCLUDE_DIRS "."
   PRIV_REQUIRES ${COMPONENT_PRIV_REQUIRES}
-  # EMBED_TXTFILES ${COMPONENT_EMBED_TXTFILES}
+  EMBED_TXTFILES ${COMPONENT_EMBED_TXTFILES}
 )
 
 set(PRESERVE_UI_ACTIONS

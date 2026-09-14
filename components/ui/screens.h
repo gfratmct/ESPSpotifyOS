@@ -9,24 +9,32 @@ extern "C" {
 #endif
 
 typedef struct _objects_t {
-    lv_obj_t *screen_1;
+    lv_obj_t *home;
+    lv_obj_t *setup;
     lv_obj_t *main_container;
-    lv_obj_t *label_1;
+    lv_obj_t *label_setup_1;
     lv_obj_t *connect_to_spotify;
-    lv_obj_t *textarea_1;
     lv_obj_t *status;
+    lv_obj_t *panel_1;
+    lv_obj_t *home_label_top;
+    lv_obj_t *home_library_container;
+    lv_obj_t *home_library_item;
     lv_obj_t *connect_to_spotify_label;
 } objects_t;
 
 extern objects_t objects;
 
 enum ScreensEnum {
-    SCREEN_ID_SCREEN_1 = 1,
+    SCREEN_ID_HOME = 1,
+    SCREEN_ID_SETUP = 2,
 };
 
-void create_screen_screen_1();
-void tick_screen_screen_1();
-void delete_screen_screen_1();
+void create_screen_home();
+void tick_screen_home();
+void delete_screen_home();
+void create_screen_setup();
+void tick_screen_setup();
+void delete_screen_setup();
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

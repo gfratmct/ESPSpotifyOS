@@ -4,5 +4,6 @@
 // Common colors
 const uint32_t common_000000 = 0x000000;
 const uint32_t common_111111 = 0x111111;
+const uint32_t common_1db954 = 0x1db954;
 const uint32_t common_ffffff = 0xffffff;
 

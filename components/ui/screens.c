@@ -13,14 +13,82 @@
 objects_t objects;
 lv_obj_t *tick_value_change_obj;
 
-void create_screen_screen_1() {
+void create_screen_home() {
     lv_obj_t *obj = lv_obj_create(0);
-    objects.screen_1 = obj;
+    objects.home = obj;
     lv_obj_set_pos(obj, 0, 0);
     lv_obj_set_size(obj, 240, 320);
         lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(common_000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(common_111111), LV_PART_MAIN | LV_STATE_DEFAULT);
+    {
+        lv_obj_t *parent_obj = obj;
+        {
+            // panel_1 (scrollable panel)
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.panel_1 = obj;
+            lv_obj_set_pos(obj, 20, 20);
+            lv_obj_set_size(obj, 200, 280);
+            lv_obj_set_style_pad_all(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // home_label_top
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.home_label_top = obj;
+                    lv_obj_set_pos(obj, 0, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_font(obj, &font_dm_sans_700_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Hello");
+                }
+                {
+                    // home_library_container
+                    lv_obj_t *obj = lv_obj_create(parent_obj);
+                    objects.home_library_container = obj;
+                    lv_obj_set_pos(obj, 0, 35);
+                    lv_obj_set_size(obj, 200, 176);
+                    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_pad_all(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_add_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            // home_library_item
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            objects.home_library_item = obj;
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_obj_set_style_text_font(obj, &font_dm_sans_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_text_align(obj, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_label_set_text(obj, "Item 1");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    tick_screen_home();
+}
+
+void tick_screen_home() {
+}
+
+
+void create_screen_setup() {
+    lv_obj_t *obj = lv_obj_create(0);
+    objects.setup = obj;
+    lv_obj_set_pos(obj, 0, 0);
+    lv_obj_set_size(obj, 240, 320);
+        lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(common_111111), LV_PART_MAIN | LV_STATE_DEFAULT);
     {
         lv_obj_t *parent_obj = obj;
         {
@@ -36,14 +104,16 @@ void create_screen_screen_1() {
             {
                 lv_obj_t *parent_obj = obj;
                 {
-                    // label_1
+                    // label_setup_1
                     lv_obj_t *obj = lv_label_create(parent_obj);
-                    objects.label_1 = obj;
-                    lv_obj_set_pos(obj, 66, 0);
+                    objects.label_setup_1 = obj;
+                    lv_obj_set_pos(obj, 42, 0);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_text_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_font(obj, &font_dm_sans_700_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_color(obj, lv_color_hex(common_ffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Welcome");
+                    lv_obj_set_style_text_align(obj, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "ESP Spotify OS");
                 }
                 {
                     // connect_to_spotify
@@ -51,34 +121,28 @@ void create_screen_screen_1() {
                     objects.connect_to_spotify = obj;
                     lv_obj_set_pos(obj, 15, 240);
                     lv_obj_set_size(obj, 172, 40);
-                    lv_obj_set_style_bg_color(obj, lv_color_hex(common_111111), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_bg_color(obj, lv_color_hex(common_1db954), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_letter_space(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_line_space(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_align(obj, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_decor(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_radius(obj, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_font(obj, &font_dm_sans_14, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_text_color(obj, lv_color_hex(common_ffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(common_000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                     {
                         lv_obj_t *parent_obj = obj;
                         {
                             // connect_to_spotify_label
                             lv_obj_t *obj = lv_label_create(parent_obj);
                             objects.connect_to_spotify_label = obj;
-                            lv_obj_set_style_text_color(obj, lv_color_hex(common_ffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_text_color(obj, lv_color_hex(common_000000), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_label_set_text(obj, "Connect to Spotify");
                             lv_obj_center(obj);
                         }
                     }
-                }
-                {
-                    // textarea_1
-                    lv_obj_t *obj = lv_textarea_create(parent_obj);
-                    objects.textarea_1 = obj;
-                    lv_obj_set_pos(obj, 0, 28);
-                    lv_obj_set_size(obj, 200, 173);
-                    lv_textarea_set_placeholder_text(obj, "Enter text...");
                 }
                 {
                     // status
@@ -86,6 +150,7 @@ void create_screen_screen_1() {
                     objects.status = obj;
                     lv_obj_set_pos(obj, 77, 213);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_font(obj, &font_dm_sans_14, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "Status");
                 }
             }
@@ -96,17 +161,18 @@ void create_screen_screen_1() {
     lv_obj_add_flag(objects.connect_to_spotify, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(objects.connect_to_spotify, connect_to_spotify_clicked_cb, LV_EVENT_CLICKED, NULL);
 
-    tick_screen_screen_1();
+    tick_screen_setup();
 }
 
-void tick_screen_screen_1() {
+void tick_screen_setup() {
 }
 
 
 
 typedef void (*tick_screen_func_t)();
 tick_screen_func_t tick_screen_funcs[] = {
-    tick_screen_screen_1,
+    tick_screen_home,
+    tick_screen_setup,
 };
 void tick_screen(int screen_index) {
     tick_screen_funcs[screen_index]();
@@ -115,24 +181,36 @@ void tick_screen_by_id(enum ScreensEnum screenId) {
     tick_screen_funcs[screenId - 1]();
 }
 
-void delete_screen_screen_1() {
-    if (objects.screen_1 != NULL) {
-        pp_anim_stop_timelines_for_deleted_tree(objects.screen_1);
-        lv_obj_del(objects.screen_1);
+void delete_screen_home() {
+    if (objects.home != NULL) {
+        pp_anim_stop_timelines_for_deleted_tree(objects.home);
+        lv_obj_del(objects.home);
     }
-    objects.screen_1 = 0;
+    objects.home = 0;
+    objects.panel_1 = 0;
+    objects.home_label_top = 0;
+    objects.home_library_container = 0;
+    objects.home_library_item = 0;
+}
+
+void delete_screen_setup() {
+    if (objects.setup != NULL) {
+        pp_anim_stop_timelines_for_deleted_tree(objects.setup);
+        lv_obj_del(objects.setup);
+    }
+    objects.setup = 0;
     objects.main_container = 0;
-    objects.label_1 = 0;
+    objects.label_setup_1 = 0;
     objects.connect_to_spotify = 0;
     objects.connect_to_spotify_label = 0;
-    objects.textarea_1 = 0;
     objects.status = 0;
 }
 
 
 typedef void (*delete_screen_func_t)();
 delete_screen_func_t delete_screen_funcs[] = {
-    delete_screen_screen_1,
+    delete_screen_home,
+    delete_screen_setup,
 };
 void delete_screen_by_id(enum ScreensEnum screenId) {
     delete_screen_funcs[screenId - 1]();
@@ -144,5 +222,6 @@ void create_screens() {
     lv_theme_t *theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), true, LV_FONT_DEFAULT);
     lv_disp_set_theme(dispp, theme);
 
-    create_screen_screen_1();
+    create_screen_home();
+    create_screen_setup();
 }

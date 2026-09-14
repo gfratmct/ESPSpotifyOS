@@ -8,6 +8,7 @@
 #include "display/lcd.h"
 #include "connectivity/wifi.h"
 #include "server/http.h"
+#include "data/state.h"
 
 static const char *TAG = "main";
 
@@ -20,18 +21,26 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    // init state
+    load_app_state();
+    app_state_t *state = get_app_state();
+
+    // debug print app state
+    ESP_LOGI(TAG, "App state: spotify_token=%s, refresh_token=%s, logged_in=%d, current_screen=%d, wifi_ssid=%s",
+             state->spotify_token, state->refresh_token, state->is_logged_in, state->current_screen, state->wifi_ssid);
+
     ESP_LOGI(TAG, "initializing display");
     ESP_ERROR_CHECK(lcd_init());
     lcd_backlight_init();
-    lcd_backlight_set(20);
+    lcd_backlight_set(20); 
 
     // setup ui
     ESP_LOGI(TAG, "initializing ui");
     ui_init();
+    loadScreen(state->current_screen);
 
     // lets connect to the wifi
-    ESP_ERROR_CHECK(wifi_start());
-    if (!wifi_wait_connected(15000) || !wifi_is_connected()) {
+    if (!wifi_wait_connected(15000)) {
         ESP_LOGE(TAG, "Wifi connection failed! Webserver will NOT start.");
     } else {
         ESP_LOGI(TAG, "Wifi connected successfully!");

@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "data/state.h"
 
 #include "esp_err.h"
 
