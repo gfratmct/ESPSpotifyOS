@@ -38,15 +38,44 @@
       margin-top: 20px;
     }
     button:hover { background: #1ed760; }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #121212;
+      color: #fff;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>ESPSpotifyOS</h1>
     <p>Device connected and ready.</p>
-    <form action="/submit" method="GET">
+    <a href="{{SPOTIFY_OAUTH_URL}}" target="_blank">Login with Spotify</a>
+    <form action="/submit" method="POST">
+      <input type="text" name="spotify_code" placeholder="Enter Spotify code" required>
       <button type="submit">Submit / Auth</button>
     </form>
   </div>
+
+  <script>
+    // on spotify_code change if url is pasted only clean and get the code parameter
+    const spotifyCodeInput = document.querySelector('input[name="spotify_code"]');
+    spotifyCodeInput.addEventListener('input', (event) => {
+      const value = event.target.value;
+      try {
+        const url = new URL(value);
+        const code = url.searchParams.get('code');
+        if (code) {
+          event.target.value = code;
+        }
+      } catch (e) {
+        // not a valid URL, do nothing
+      }
+    });
+  </script>
 </body>
 </html>

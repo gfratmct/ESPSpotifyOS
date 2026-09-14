@@ -7,9 +7,6 @@
 #include <string.h>
 #include <esp_log.h>
 
-#define MAX_HEADERS_SIZE 512
-#define MAX_BODY_SIZE 2048
-
 typedef struct {
     httpd_handle_t server;
     bool is_running;

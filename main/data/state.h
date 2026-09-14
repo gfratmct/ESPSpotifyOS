@@ -14,8 +14,8 @@ extern "C"
 
   typedef struct
   {
-    uint8_t spotify_token[256];
-    uint8_t refresh_token[256];
+    uint8_t spotify_token[512]; // Spotify access tokens are ~340-360 char JWTs
+    uint8_t refresh_token[512];
     uint8_t wifi_ssid[32]; // array of bytes for SSID as esp-idf
     uint8_t wifi_password[64]; // array of bytes for password as esp-idf
     uint32_t token_expires_at;

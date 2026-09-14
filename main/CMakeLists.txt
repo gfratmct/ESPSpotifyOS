@@ -5,8 +5,11 @@ set(COMPONENT_SRCS
   "data/settings.c"
   "data/state.c"
   "display/lcd.c"
+  "display/home_ui.c"
+  "display/ui_state.c"
   "server/http.c"
   "utils/http.c"
+  "utils/spotify.c"
   "utils/storage.c"
 )
 
@@ -22,6 +25,8 @@ set(CORE_DEPS
 
 set(CONNECTIVITY_DEPS
   esp_wifi
+  esp_netif
+  lwip
   esp-tls
   mbedtls
   esp_http_client

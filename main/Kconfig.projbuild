@@ -201,6 +201,12 @@ menu "Player Configuration"
             Client ID of your Spotify Developer app. Used by the PKCE OAuth flow;
             no client secret is stored on the device.
 
+    config PLAYER_SPOTIFY_CLIENT_SECRET
+        string "Spotify Client Secret"
+        default ""
+        help
+            Client Secret of your Spotify Developer app to retrieve access token.
+
     config PLAYER_SPOTIFY_REDIRECT_PORT
         int "Spotify OAuth paste-page HTTP port"
         default 80

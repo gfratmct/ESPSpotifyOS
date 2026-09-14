@@ -9,16 +9,24 @@ void act_spotify_connect(void)
 {
     ESP_LOGI(TAG, "connect_to_spotify pressed — starting OAuth flow");
 
-    http_response_t resp;
-    esp_err_t err = http_get("http://127.0.0.1:8080/submit", &resp);
+    // http_response_t is large (MAX_BODY_SIZE bytes); keep it off the stack
+    http_response_t *resp = malloc(sizeof(http_response_t));
+    if (!resp) {
+        ESP_LOGE(TAG, "Failed to allocate http_response_t");
+        return;
+    }
+
+    esp_err_t err = http_get("http://127.0.0.1:8080/submit", NULL, 0, resp);
 
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTP GET successful: %s", resp.data);
-        ESP_LOGI(TAG, "   - GET headers: %s", resp.headers);
-        ESP_LOGI(TAG, "   - GET content length: %d", resp.content_length);
-        ESP_LOGI(TAG, "   - GET data length: %d", resp.data_len);
-        ESP_LOGI(TAG, "   - GET status code: %d", resp.status_code);
+        ESP_LOGI(TAG, "HTTP GET successful: %s", resp->data);
+        ESP_LOGI(TAG, "   - GET headers: %s", resp->headers);
+        ESP_LOGI(TAG, "   - GET content length: %d", resp->content_length);
+        ESP_LOGI(TAG, "   - GET data length: %d", resp->data_len);
+        ESP_LOGI(TAG, "   - GET status code: %d", resp->status_code);
     } else {
         ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
     }
+
+    free(resp);
 }

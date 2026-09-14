@@ -1,4 +1,5 @@
 #include "http.h"
+#include "esp_crt_bundle.h"
 
 #define TAG "http_client"
 
@@ -23,6 +24,10 @@ static esp_err_t http_client_event_handler(esp_http_client_event_t *evt) {
                 memcpy(resp->data + resp->data_len, evt->data, evt->data_len);
                 resp->data_len += evt->data_len;
                 resp->data[resp->data_len] = '\0';
+            } else if (evt->data_len > 0) {
+                // body larger than the buffer — flag it so callers can report
+                // truncation instead of parsing a silently cut-off payload
+                resp->truncated = true;
             }
             break;
         }
@@ -32,7 +37,7 @@ static esp_err_t http_client_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-esp_err_t http_get(const char *url, http_response_t *resp) {
+esp_err_t http_get(const char *url, const http_header_t *headers, size_t headers_count, http_response_t *resp) {
     if (!url || !resp) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -45,11 +50,16 @@ esp_err_t http_get(const char *url, http_response_t *resp) {
         .event_handler = http_client_event_handler,
         .user_data = resp,
         .timeout_ms = 5000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) {
         return ESP_FAIL;
+    }
+
+    for (size_t i = 0; i < headers_count; i++) {
+        esp_http_client_set_header(client, headers[i].key, headers[i].value);
     }
 
     esp_err_t err = esp_http_client_perform(client);
@@ -60,11 +70,16 @@ esp_err_t http_get(const char *url, http_response_t *resp) {
 
     esp_http_client_cleanup(client);
 
+    if (resp->truncated) {
+        ESP_LOGW(TAG, "GET %s: body exceeded %u bytes and was truncated",
+                 url, (unsigned)sizeof(resp->data));
+    }
     ESP_LOGI(TAG, "HTTP GET request to %s completed with status %d", url, resp->status_code);
     return err;
 }
 
-esp_err_t http_post(const char *url, const char *post_data, const char *content_type, http_response_t *resp) {
+esp_err_t http_post(const char *url, const char *post_data, const char *content_type,
+                     const http_header_t *headers, size_t headers_count, http_response_t *resp) {
     if (!url || !resp) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -77,6 +92,7 @@ esp_err_t http_post(const char *url, const char *post_data, const char *content_
         .event_handler = http_client_event_handler,
         .user_data = resp,
         .timeout_ms = 5000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -86,6 +102,9 @@ esp_err_t http_post(const char *url, const char *post_data, const char *content_
 
     if (content_type) {
         esp_http_client_set_header(client, "Content-Type", content_type);
+    }
+    for (size_t i = 0; i < headers_count; i++) {
+        esp_http_client_set_header(client, headers[i].key, headers[i].value);
     }
     if (post_data) {
         esp_http_client_set_post_field(client, post_data, strlen(post_data));
@@ -99,6 +118,10 @@ esp_err_t http_post(const char *url, const char *post_data, const char *content_
 
     esp_http_client_cleanup(client);
 
+    if (resp->truncated) {
+        ESP_LOGW(TAG, "POST %s: body exceeded %u bytes and was truncated",
+                 url, (unsigned)sizeof(resp->data));
+    }
     ESP_LOGI(TAG, "HTTP POST request to %s completed with status %d", url, resp->status_code);
     return err;
 }

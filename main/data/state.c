@@ -10,6 +10,33 @@
 
 static app_state_t g_app_state;
 
+// NVS blob layout from before the token buffers were enlarged to 512 bytes.
+// Kept only so old state can be migrated instead of discarded.
+typedef struct {
+    uint8_t spotify_token[256];
+    uint8_t refresh_token[256];
+    uint8_t wifi_ssid[32];
+    uint8_t wifi_password[64];
+    uint32_t token_expires_at;
+    bool is_logged_in;
+    enum ScreensEnum current_screen;
+} app_state_v1_t;
+
+// Copies an old-layout blob field by field into the active state.
+static void migrate_state_v1(const app_state_v1_t *old)
+{
+    memcpy(g_app_state.spotify_token, old->spotify_token, sizeof(old->spotify_token));
+    memcpy(g_app_state.refresh_token, old->refresh_token, sizeof(old->refresh_token));
+    memcpy(g_app_state.wifi_ssid, old->wifi_ssid, sizeof(old->wifi_ssid));
+    memcpy(g_app_state.wifi_password, old->wifi_password, sizeof(old->wifi_password));
+    g_app_state.token_expires_at = old->token_expires_at;
+    g_app_state.is_logged_in = old->is_logged_in;
+    g_app_state.current_screen = old->current_screen;
+    // keep NUL-termination within the (larger) new buffers
+    g_app_state.spotify_token[sizeof(g_app_state.spotify_token) - 1] = '\0';
+    g_app_state.refresh_token[sizeof(g_app_state.refresh_token) - 1] = '\0';
+}
+
 void init_default_state(void)
 {
     memset(&g_app_state, 0, sizeof(app_state_t));
@@ -30,11 +57,19 @@ esp_err_t load_app_state(void)
     // populate RAM with known defaults
     init_default_state();
 
-    // Read from NVS flash into a temporary buffer
+    // Read from NVS flash into a temporary struct. The blob may have been
+    // written by an older firmware with a different (smaller) layout, so
+    // decide based on the actual blob size.
     app_state_t loaded_state;
     size_t loaded_len = 0;
     esp_err_t err = storage_get_blob(STATE_NAMESPACE, STATE_BLOB_KEY,
                                      &loaded_state, sizeof(app_state_t), &loaded_len);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NOT_FOUND)
+    {
+        ESP_LOGI(TAG, "No existing state found in flash — using defaults");
+        return ESP_OK;
+    }
 
     if (err == ESP_OK && loaded_len == sizeof(app_state_t))
     {
@@ -45,9 +80,13 @@ esp_err_t load_app_state(void)
         return ESP_OK;
     }
 
-    if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NOT_FOUND)
+    if (err == ESP_OK && loaded_len == sizeof(app_state_v1_t))
     {
-        ESP_LOGI(TAG, "No existing state found in flash — using defaults");
+        // Old-layout blob: migrate so the login/refresh token survives
+        migrate_state_v1((const app_state_v1_t *)&loaded_state);
+        ESP_LOGI(TAG, "Migrated state from v1 blob layout (logged_in=%d)",
+                 g_app_state.is_logged_in);
+        save_app_state(); // persist in the new layout
         return ESP_OK;
     }
 

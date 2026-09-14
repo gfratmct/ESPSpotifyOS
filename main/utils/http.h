@@ -8,7 +8,7 @@
 #include <esp_log.h>
 
 #define MAX_HEADERS_SIZE 512
-#define MAX_BODY_SIZE 2048
+#define MAX_BODY_SIZE 8192
 
 typedef struct {
     int status_code;
@@ -16,8 +16,16 @@ typedef struct {
     char headers[MAX_HEADERS_SIZE];
     char data[MAX_BODY_SIZE];
     size_t data_len;
+    bool truncated; // body was larger than data[] and got cut off
 } http_response_t;
 
-// Some utils for http GET and POST requests to external servers
-esp_err_t http_get(const char *url, http_response_t *resp);
-esp_err_t http_post(const char *url, const char *post_data, const char *content_type, http_response_t *resp);
+typedef struct {
+    const char *key;
+    const char *value;
+} http_header_t;
+
+// Some utils for http GET and POST requests to external servers.
+// `headers`/`headers_count` may be NULL/0 to send no extra request headers.
+esp_err_t http_get(const char *url, const http_header_t *headers, size_t headers_count, http_response_t *resp);
+esp_err_t http_post(const char *url, const char *post_data, const char *content_type,
+                     const http_header_t *headers, size_t headers_count, http_response_t *resp);

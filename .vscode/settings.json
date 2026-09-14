@@ -24,15 +24,15 @@
     "board/esp32-wrover-kit-3.3v.cfg"
   ],
   "idf.port": "detect",
-  "idf.currentSetup": "/Users/gabrielelanzafame/.espressif/v6.1/esp-idf",
+  "idf.currentSetup": "C:/esp/esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32"
   },
-  "clangd.path": "/Users/gabrielelanzafame/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd",
+  "clangd.path": "C:/Users/gabri/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd.exe",
   "clangd.enabled": false,
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
-    "--compile-commands-dir=/Users/gabrielelanzafame/Documents/Codes/ESPSpotifyOS/build"
+    "--compile-commands-dir=C:/Users/gabri/Documents/Codes/ESPSpotifyOS/build"
   ]
 }
