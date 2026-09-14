@@ -1,0 +1,226 @@
+menu "MAIN"
+
+    config LCD_HRES
+        int "LCD Horizontal Resolution"
+        default 320
+        help
+            Set the horizontal resolution of the LCD.
+
+    config LCD_VRES
+        int "LCD Vertical Resolution"
+        default 240
+        help
+            Set the vertical resolution of the LCD.
+
+    config ESP_WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+        help
+            SSID (network name) for the example to connect to.
+
+    config ESP_WIFI_PASSWORD
+        string "WiFi Password"
+        default "mypassword"
+        help
+            WiFi password (WPA or WPA2) for the example to use.
+
+    choice ESP_WIFI_SAE_MODE
+        prompt "WPA3 SAE mode selection"
+        default ESP_STATION_EXAMPLE_WPA3_SAE_PWE_BOTH
+        help
+            Select mode for SAE as Hunt and Peck, H2E or both.
+        config ESP_STATION_EXAMPLE_WPA3_SAE_PWE_HUNT_AND_PECK
+            bool "HUNT AND PECK"
+        config ESP_STATION_EXAMPLE_WPA3_SAE_PWE_HASH_TO_ELEMENT
+            bool "H2E"
+            depends on ESP_WIFI_ENABLE_SAE_H2E
+        config ESP_STATION_EXAMPLE_WPA3_SAE_PWE_BOTH
+            bool "BOTH"
+            depends on ESP_WIFI_ENABLE_SAE_H2E
+    endchoice
+
+    config ESP_WIFI_PW_ID
+        string "PASSWORD IDENTIFIER"
+        depends on  ESP_STATION_EXAMPLE_WPA3_SAE_PWE_HASH_TO_ELEMENT|| ESP_STATION_EXAMPLE_WPA3_SAE_PWE_BOTH
+        default ""
+        help
+            password identifier for SAE H2E
+
+    config ESP_MAXIMUM_RETRY
+        int "Maximum retry"
+        default 5
+        help
+            Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+
+    choice ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
+        prompt "WiFi Scan auth mode threshold"
+        default ESP_WIFI_AUTH_WPA2_PSK
+        help
+            The weakest authmode to accept in the scan mode.
+            This value defaults to ESP_WIFI_AUTH_WPA2_PSK in case password is present and ESP_WIFI_AUTH_OPEN is used.
+            Please select ESP_WIFI_AUTH_WEP/ESP_WIFI_AUTH_WPA_PSK in case AP is operating in WEP/WPA mode.
+
+        config ESP_WIFI_AUTH_OPEN
+            bool "OPEN"
+        config ESP_WIFI_AUTH_WEP
+            bool "WEP"
+        config ESP_WIFI_AUTH_WPA_PSK
+            bool "WPA PSK"
+        config ESP_WIFI_AUTH_WPA2_PSK
+            bool "WPA2 PSK"
+        config ESP_WIFI_AUTH_WPA_WPA2_PSK
+            bool "WPA/WPA2 PSK"
+        config ESP_WIFI_AUTH_WPA3_PSK
+            bool "WPA3 PSK"
+        config ESP_WIFI_AUTH_WPA2_WPA3_PSK
+            bool "WPA2/WPA3 PSK"
+        config ESP_WIFI_AUTH_WAPI_PSK
+            bool "WAPI PSK"
+    endchoice
+
+endmenu
+
+menu "XPT2046"
+    config XPT2046_Z_THRESHOLD
+        int "Minimum Z pressure threshold"
+        default 400
+        help
+            Touch pressure less than this value will be discarded as invalid
+            and no touch position data collected.
+
+    config XPT2046_INTERRUPT_MODE
+        bool "Enable Interrupt (PENIRQ) output"
+        default n
+        help
+            Also called Full Power Mode.
+            Enable this to configure the XPT2046 to output low on the PENIRQ output
+            if a touch is detected.
+            This mode uses more power when enabled.
+            Note that this signal goes low normally when a read is active.
+
+    config XPT2046_VREF_ON_MODE
+        bool "Keep internal Vref enabled"
+        default n
+        help
+            Enable this to keep the internal Vref enabled between conversions.
+            This uses slightly more power, but requires fewer transactions when
+            reading the battery voltage, aux voltage and temperature.
+
+    config XPT2046_CONVERT_ADC_TO_COORDS
+        bool "Convert touch coordinates to screen coordinates"
+        default y
+        help
+            When this option is enabled the raw ADC values will be converted from
+            0-4096 to 0-{screen width} or 0-{screen height}.
+            When this option is disabled the process_coordinates method will need
+            to be used to convert the raw ADC values into a screen coordinate.
+
+    config XPT2046_ENABLE_LOCKING
+        bool "Enable data structure locking"
+        default n
+        help
+            By enabling this option the XPT2046 driver will lock the touch position
+            data structures when reading values from the XPT2046 and when reading
+            position data via API.
+            WARNING: enabling this option may result in unintended crashes.
+endmenu
+menu "Player Configuration"
+
+    config PLAYER_DEVICE_NAME
+        string "Bluetooth device name"
+        default "ESP32 Spotify Player"
+        help
+            Name advertised by the A2DP sink when pairing.
+
+    config PLAYER_SD_CS_GPIO
+        int "SD card chip select GPIO"
+        default 5
+        help
+            Chip-select line of the onboard microSD slot (shares the LCD SPI bus).
+
+    config PLAYER_SD_MOUNT_POINT
+        string "SD card mount point"
+        default "/sdcard"
+        help
+            VFS mount point for the SD card.
+
+    config PLAYER_MUSIC_DIR
+        string "Music directory on SD card"
+        default "/music"
+        help
+            Directory scanned for .mp3 files for local playback.
+
+    config PLAYER_MUSIC_MAX_FILES
+        int "Maximum number of indexed music files"
+        default 64
+        help
+            Upper bound for the local music library index.
+
+    config PLAYER_TEST_TONE
+        bool "Play a 440 Hz test tone at boot"
+        default n
+        help
+            Enable to play a short test tone through the DAC after startup,
+            useful to verify the audio path without a phone connected.
+
+    config PLAYER_AUX_BCK_GPIO
+        int "AUX I2S bit clock GPIO (PCM5102, placeholder)"
+        default -1
+        help
+            Reserved for the future external I2S DAC / line-out. -1 = not connected.
+
+    config PLAYER_AUX_DIN_GPIO
+        int "AUX I2S data GPIO (PCM5102, placeholder)"
+        default -1
+        help
+            Reserved for the future external I2S DAC / line-out. -1 = not connected.
+
+    config PLAYER_AUX_LRCK_GPIO
+        int "AUX I2S word-select GPIO (PCM5102, placeholder)"
+        default -1
+        help
+            Reserved for the future external I2S DAC / line-out. -1 = not connected.
+
+    config PLAYER_AUX_SCK_GPIO
+        int "AUX I2S master clock GPIO (PCM5102, placeholder)"
+        default -1
+        help
+            Reserved for the future external I2S DAC / line-out. -1 = not connected.
+
+    config PLAYER_AUX_DET_GPIO
+        int "AUX jack plug-detect GPIO (placeholder)"
+        default -1
+        help
+            Input wired to the AUX jack insert switch on the future line-in board.
+            -1 = not connected.
+
+    config PLAYER_SPOTIFY_CLIENT_ID
+        string "Spotify Client ID"
+        default ""
+        help
+            Client ID of your Spotify Developer app. Used by the PKCE OAuth flow;
+            no client secret is stored on the device.
+
+    config PLAYER_SPOTIFY_REDIRECT_PORT
+        int "Spotify OAuth paste-page HTTP port"
+        default 80
+        help
+            Local HTTP server port that serves the page where the user pastes
+            the authorization code copied from the browser address bar.
+
+    config PLAYER_SPOTIFY_LOOPBACK_PORT
+        int "Spotify OAuth loopback redirect port"
+        default 8888
+        help
+            Port used in the registered redirect URI
+            (http://127.0.0.1:PORT/callback). Spotify only accepts HTTPS or
+            loopback IP literals, so this must exactly match the redirect URI
+            added in the Spotify Developer Dashboard.
+
+    config PLAYER_BT_VOLUME_STEP
+        int "Volume step per press"
+        default 10
+        help
+            Volume change applied by a single Volume + / - press.
+
+endmenu
