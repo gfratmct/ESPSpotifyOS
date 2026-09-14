@@ -123,7 +123,7 @@ esp_err_t lcd_init(void)
         .miso_io_num = LCD_SPI_MISO_GPIO,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = CONFIG_LCD_HRES * LCD_DRAW_BUFFER_LINES * sizeof(uint16_t),
+        .max_transfer_sz = CONFIG_LCD_HRES * LCD_DRAW_BUFFER_LINES * 3,
     };
     ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_SPI_HOST, &lcd_bus_config, SPI_DMA_CH_AUTO),
                         TAG, "failed to initialize LCD SPI bus");
@@ -162,7 +162,7 @@ esp_err_t lcd_init(void)
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = LCD_SPI_LCD_RST_GPIO,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-        .bits_per_pixel = 16,
+        .bits_per_pixel = 18,
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_ili9341(lcd_io, &panel_config, &s_panel),
                         TAG, "failed to create ILI9341 panel");
@@ -197,10 +197,10 @@ esp_err_t lcd_init(void)
     if (s_display == NULL) {
         return ESP_ERR_NO_MEM;
     }
-    lv_display_set_color_format(s_display, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_color_format(s_display, LV_COLOR_FORMAT_RGB888);
     lv_display_set_flush_cb(s_display, lcd_flush);
 
-    size_t buffer_size = CONFIG_LCD_HRES * LCD_DRAW_BUFFER_LINES * sizeof(uint16_t);
+    size_t buffer_size = CONFIG_LCD_HRES * LCD_DRAW_BUFFER_LINES * 3;
     void *buffer = heap_caps_malloc(buffer_size, MALLOC_CAP_DMA);
     if (buffer == NULL) {
         return ESP_ERR_NO_MEM;

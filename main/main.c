@@ -62,7 +62,7 @@ void app_main(void)
     ESP_LOGI(TAG, "initializing display");
     ESP_ERROR_CHECK(lcd_init());
     lcd_backlight_init();
-    lcd_backlight_set(60);
+    lcd_backlight_set(20);
 
     // setup ui
     ESP_LOGI(TAG, "initializing ui");
