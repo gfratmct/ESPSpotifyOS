@@ -168,7 +168,7 @@ esp_err_t lcd_init(void)
                         TAG, "failed to create ILI9341 panel");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(s_panel), TAG, "failed to reset LCD panel");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "failed to initialize LCD panel");
-    // The panel is natively 240x320 (portrait), rotate it to 320x240 (landscape)
+    // The panel is natively 240x320 (portrait)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, false), TAG, "failed to swap LCD panel axes");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, true, false), TAG, "failed to mirror LCD panel");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(s_panel, true), TAG, "failed to turn on LCD panel");

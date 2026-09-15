@@ -26,14 +26,28 @@ static void clear_library_list(void)
     objects.home_library_item = NULL;
 }
 
+// event on click on a library item
+static void library_item_event_handler(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *item = lv_event_get_target(e);
+    if (code == LV_EVENT_CLICKED) {
+        ESP_LOGI(TAG, "Library item clicked: %p", item);
+        // handle the click event, e.g., play the track or show details
+    }
+}
+
 static void add_library_label(int index, const char *text)
 {
     lv_obj_t *item = lv_label_create(objects.home_library_container);
     lv_obj_set_pos(item, 0, index * HOME_UI_ITEM_HEIGHT);
     lv_label_set_long_mode(item, LV_LABEL_LONG_DOT); // ellipsize names wider than the panel
     lv_obj_set_size(item, 200, LV_SIZE_CONTENT);
+    // add proper padding, active state when active or clicked
+    lv_obj_set_style_pad_all(item, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(item, &font_dm_sans_14, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_label_set_text(item, text);
+    lv_obj_add_event_cb(item, library_item_event_handler, LV_EVENT_CLICKED, NULL);
 }
 
 void home_ui_refresh_library(void)

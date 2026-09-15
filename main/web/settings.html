@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - ESPSpotifyOS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <!-- here I want to be able to update the settings of my ESP32 as
+        wifi creds, debug, etc. For now only wifi -->
+    <form id="wifi-settings-form">
+        <label for="ssid">WiFi SSID:</label>
+        <input type="text" id="ssid" name="ssid" required>
+        <br>
+        <label for="password">WiFi Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>
