@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/gfratmct/ESPSpotifyOS/service/internal/database/contexts"
 	"github.com/gfratmct/ESPSpotifyOS/service/internal/database/models"
+	"github.com/gfratmct/ESPSpotifyOS/service/internal/types"
 )
 
 type TrackService struct {
@@ -42,5 +43,11 @@ func (s *TrackService) DeleteTrack(id int) error {
 // this function will be the main entrypoint for when I need to import a new track
 func (s *TrackService) ImportTrackBasedOnQuery(url string) (*models.TrackModel, error) {
 	// Implement the logic to import the track from YouTube using s.ytdlpService
+	return nil, nil
+}
+
+// stream
+func (s *TrackService) StreamTrack(id int) (<-chan types.StreamChunk, error) {
+	// Implement the logic to stream the track from the local file or YouTube using s.ytdlpService
 	return nil, nil
 }
