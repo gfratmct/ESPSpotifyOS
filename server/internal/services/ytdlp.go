@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gfratmct/ESPSpotifyOS/service/internal/models"
+	"github.com/gfratmct/ESPSpotifyOS/service/internal/types"
 )
 
 type YouTubeDLPService struct {
@@ -34,7 +34,7 @@ func NewYouTubeDLPService(defaultStoragePath string) *YouTubeDLPService {
 
 // search method
 
-func (s *YouTubeDLPService) Search(query string, limit int) ([]models.SearchResult, error) {
+func (s *YouTubeDLPService) Search(query string, limit int) ([]types.SearchResult, error) {
 	// Implement the search functionality using youtube-dl
 	// Return a list of video URLs or IDs matching the query
 	if limit <= 0 {
@@ -56,7 +56,7 @@ func (s *YouTubeDLPService) Search(query string, limit int) ([]models.SearchResu
 		return nil, err
 	}
 
-	var items []models.SearchResult
+	var items []types.SearchResult
 	scanner := bufio.NewScanner(strings.NewReader(out))
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // yt-dlp lines can be long
 	for scanner.Scan() {
@@ -71,7 +71,7 @@ func (s *YouTubeDLPService) Search(query string, limit int) ([]models.SearchResu
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			continue // skip malformed line rather than failing whole search
 		}
-		items = append(items, models.SearchResult{
+		items = append(items, types.SearchResult{
 			ID:    raw.ID,
 			Title: raw.Title,
 			URL:   "https://music.youtube.com/watch?v=" + raw.ID,
@@ -85,7 +85,7 @@ func (s *YouTubeDLPService) Search(query string, limit int) ([]models.SearchResu
 }
 
 // Download method to download a media item using yt-dlp
-func (s *YouTubeDLPService) Download(item models.SearchResult, path string) (models.MediaItem, error) {
+func (s *YouTubeDLPService) Download(item types.SearchResult, path string) (types.MediaItem, error) {
 	// Implement the download functionality using yt-dlp
 	// Return the downloaded media item or an error if the download fails
 	dir := path
@@ -94,18 +94,18 @@ func (s *YouTubeDLPService) Download(item models.SearchResult, path string) (mod
 	}
 	if dir == "" {
 		// throw error
-		return models.MediaItem{}, fmt.Errorf("no storage path specified")
+		return types.MediaItem{}, fmt.Errorf("no storage path specified")
 	}
 
 	// check if ffmpeg is installed
 	if !s.IsFfmpegInstalled() {
-		return models.MediaItem{}, fmt.Errorf("ffmpeg is not installed")
+		return types.MediaItem{}, fmt.Errorf("ffmpeg is not installed")
 	}
 
 	// make a dir if not exists
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return models.MediaItem{}, fmt.Errorf("failed to create storage directory: %w", err)
+			return types.MediaItem{}, fmt.Errorf("failed to create storage directory: %w", err)
 		}
 	}
 
@@ -120,17 +120,17 @@ func (s *YouTubeDLPService) Download(item models.SearchResult, path string) (mod
 	}
 
 	if _, err := s.runCommand(args...); err != nil {
-		return models.MediaItem{}, fmt.Errorf("failed to download media item: %w", err)
+		return types.MediaItem{}, fmt.Errorf("failed to download media item: %w", err)
 	}
 
 	// check if file actually exists and size is greater than 0
 	if fi, err := os.Stat(output); err != nil {
-		return models.MediaItem{}, fmt.Errorf("failed to stat downloaded file: %w", err)
+		return types.MediaItem{}, fmt.Errorf("failed to stat downloaded file: %w", err)
 	} else if fi.Size() == 0 {
-		return models.MediaItem{}, fmt.Errorf("downloaded file is empty")
+		return types.MediaItem{}, fmt.Errorf("downloaded file is empty")
 	}
 
-	return models.MediaItem{
+	return types.MediaItem{
 		ID:       item.ID,
 		Title:    item.Title,
 		URL:      item.URL,
@@ -139,7 +139,7 @@ func (s *YouTubeDLPService) Download(item models.SearchResult, path string) (mod
 }
 
 // GetTrackInfo fetches full metadata for a single track by its video ID
-func (s *YouTubeDLPService) GetTrackInfo(id string) (models.TrackInfo, error) {
+func (s *YouTubeDLPService) GetTrackInfo(id string) (types.TrackInfo, error) {
 	trackURL := "https://music.youtube.com/watch?v=" + id
 
 	args := []string{
@@ -151,7 +151,7 @@ func (s *YouTubeDLPService) GetTrackInfo(id string) (models.TrackInfo, error) {
 
 	out, err := s.runCommand(args...)
 	if err != nil {
-		return models.TrackInfo{}, err
+		return types.TrackInfo{}, err
 	}
 
 	var raw struct {
@@ -166,7 +166,7 @@ func (s *YouTubeDLPService) GetTrackInfo(id string) (models.TrackInfo, error) {
 		WebpageURL string   `json:"webpage_url"`
 	}
 	if err := json.Unmarshal([]byte(out), &raw); err != nil {
-		return models.TrackInfo{}, fmt.Errorf("failed to parse track info: %w", err)
+		return types.TrackInfo{}, fmt.Errorf("failed to parse track info: %w", err)
 	}
 
 	var artist *string
@@ -177,7 +177,7 @@ func (s *YouTubeDLPService) GetTrackInfo(id string) (models.TrackInfo, error) {
 		artist = &raw.Uploader
 	}
 
-	return models.TrackInfo{
+	return types.TrackInfo{
 		ID:        raw.ID,
 		Title:     raw.Title,
 		Artist:    artist,

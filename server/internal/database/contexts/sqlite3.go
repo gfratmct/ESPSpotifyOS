@@ -1,7 +1,9 @@
-package database
+package contexts
 
 import (
 	"database/sql"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type SQLite3Context struct {

@@ -1,11 +1,20 @@
 package handlers
 
-import "github.com/gfratmct/ESPSpotifyOS/service/internal/services"
+import (
+	"github.com/gfratmct/ESPSpotifyOS/service/internal/services"
+	"github.com/gin-gonic/gin"
+)
 
 type TrackHandler struct {
-	ytdlpService *services.YouTubeDLPService
+	trackService *services.TrackService
 }
 
-func NewTrackHandler() *TrackHandler {
-	return &TrackHandler{}
+func NewTrackHandler(trackService *services.TrackService) *TrackHandler {
+	return &TrackHandler{
+		trackService: trackService,
+	}
+}
+
+func (h *TrackHandler) Stream(c *gin.Context) {
+	// Implement the logic to stream the track
 }
