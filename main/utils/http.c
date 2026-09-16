@@ -63,11 +63,8 @@ esp_err_t http_get(const char *url, const http_header_t *headers, size_t headers
     }
 
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        resp->status_code = esp_http_client_get_status_code(client);
-        resp->content_length = esp_http_client_get_content_length(client);
-    }
-
+    resp->status_code = esp_http_client_get_status_code(client);
+    resp->content_length = esp_http_client_get_content_length(client);
     esp_http_client_cleanup(client);
 
     if (resp->truncated) {
@@ -111,10 +108,8 @@ esp_err_t http_post(const char *url, const char *post_data, const char *content_
     }
 
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        resp->status_code = esp_http_client_get_status_code(client);
-        resp->content_length = esp_http_client_get_content_length(client);
-    }
+    resp->status_code = esp_http_client_get_status_code(client);
+    resp->content_length = esp_http_client_get_content_length(client);
 
     esp_http_client_cleanup(client);
 

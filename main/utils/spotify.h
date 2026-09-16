@@ -21,8 +21,6 @@ typedef struct {
     int duration_ms;
 } spotify_track_t;
 
-// ---- Authorization / authentication -----------------------------------------
-
 /**
  * @brief Build the Spotify authorize (login) URL the user opens in a browser
  *        to grant this device access (used by the /submit GET route).
@@ -49,8 +47,6 @@ esp_err_t spotify_refresh_access_token(void);
  *        when Spotify rejects the refresh token (dead session).
  */
 void spotify_logout(void);
-
-// ---- Web API ------------------------------------------------------------------
 
 /**
  * @brief Fetch the current user's profile (/v1/me). Also serves as an

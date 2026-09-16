@@ -178,12 +178,16 @@ esp_err_t spotify_refresh_access_token(void)
     app_state_t *state = get_app_state();
     if (!state || state->refresh_token[0] == '\0') {
         ESP_LOGE(TAG, "No refresh token available");
+        spotify_logout();
         return ESP_ERR_INVALID_STATE;
     }
 
     char auth_header[192];
     esp_err_t err = build_basic_auth_header(auth_header, sizeof(auth_header));
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK) {
+        spotify_logout();
+        return err;
+    }
 
     char body[640]; // "grant_type=refresh_token&refresh_token=" + 511-char token + NUL
     snprintf(body, sizeof(body), "grant_type=refresh_token&refresh_token=%s",
@@ -197,10 +201,10 @@ esp_err_t spotify_refresh_access_token(void)
     if (!resp) return ESP_ERR_NO_MEM;
 
     err = http_post(SPOTIFY_TOKEN_URL, body, "application/x-www-form-urlencoded", headers, 1, resp);
-    if (err != ESP_OK) {
-        // transport failure (WiFi down etc.) — the session may still be fine
+    if (err != ESP_OK && resp->status_code == 0) {
         ESP_LOGE(TAG, "Token refresh transport error (%s)", esp_err_to_name(err));
         free(resp);
+        spotify_logout();
         return err;
     }
     if (resp->status_code == 400 || resp->status_code == 401 || resp->status_code == 403) {
@@ -212,10 +216,10 @@ esp_err_t spotify_refresh_access_token(void)
         return ESP_FAIL;
     }
     if (resp->status_code != 200) {
-        // server-side error — possibly transient, keep the session
         ESP_LOGE(TAG, "Token refresh failed (status=%d): %.200s",
                  resp->status_code, resp->data);
         free(resp);
+        spotify_logout();
         return ESP_FAIL;
     }
 
@@ -223,6 +227,8 @@ esp_err_t spotify_refresh_access_token(void)
     free(resp);
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Access token refreshed");
+    } else {
+        spotify_logout();
     }
     return err;
 }
@@ -254,7 +260,8 @@ static esp_err_t spotify_api_get(const char *url, http_response_t **resp_out)
         };
 
         esp_err_t err = http_get(url, headers, 1, resp);
-        if (err != ESP_OK) {
+        
+        if (err != ESP_OK && resp->status_code != 401) {
             ESP_LOGE(TAG, "GET %s failed: %s", url, esp_err_to_name(err));
             free(resp);
             return err;
@@ -262,20 +269,14 @@ static esp_err_t spotify_api_get(const char *url, http_response_t **resp_out)
 
         if (resp->status_code == 401 && attempt == 0) {
             ESP_LOGW(TAG, "401 from Spotify, refreshing token and retrying");
+
             if (spotify_refresh_access_token() != ESP_OK) {
                 free(resp);
-                return ESP_FAIL; // refresh already logged out if the session died
+                return ESP_FAIL;
             }
-            state = get_app_state(); // re-read after refresh
-            continue;
-        }
 
-        if (resp->status_code == 401) {
-            // token was just refreshed but is still rejected — dead session
-            ESP_LOGE(TAG, "Still 401 after token refresh, logging out");
-            free(resp);
-            spotify_logout();
-            return ESP_FAIL;
+            state = get_app_state();
+            continue;
         }
 
         if (resp->status_code != 200) {
