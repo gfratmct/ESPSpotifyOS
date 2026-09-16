@@ -9,8 +9,11 @@ set(COMPONENT_SRCS
   "display/ui_state.c"
   "server/http.c"
   "utils/http.c"
+  "utils/media.c"
   "utils/spotify.c"
   "utils/storage.c"
+  "utils/blob_store.c"
+  "utils/stream_debug.c"
 )
 
 set(COMPONENT_EMBED_TXTFILES

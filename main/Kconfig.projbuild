@@ -223,6 +223,21 @@ menu "Player Configuration"
             loopback IP literals, so this must exactly match the redirect URI
             added in the Spotify Developer Dashboard.
 
+    config PLAYER_MEDIA_SERVICE_URL
+        string "Media service base URL"
+        default ""
+        help
+            Base URL of the companion media server, e.g. http://192.168.1.50:8081
+            (no trailing slash). The ESP32 imports and streams tracks from here.
+            Leave empty to disable the media client.
+
+    config PLAYER_MEDIA_API_KEY
+        string "Media service API key"
+        default ""
+        help
+            Value of the SECRET variable from the media server's .env file.
+            Sent as the X-API-Key header on every media service request.
+
     config PLAYER_BT_VOLUME_STEP
         int "Volume step per press"
         default 10

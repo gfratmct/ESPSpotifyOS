@@ -15,3 +15,8 @@ bool home_ui_take_refresh_request(void);
 // Must run in the LVGL task context. No-op if not logged in or if the Home
 // screen hasn't been created yet.
 void home_ui_refresh_library(void);
+
+// Processes a finished background media import and updates the UI (top status
+// label + the imported item's label). Must run in the LVGL task context; the
+// ui_state loop calls it every tick.
+void home_ui_service_import(void);

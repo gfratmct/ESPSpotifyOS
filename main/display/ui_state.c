@@ -44,6 +44,9 @@ static void ui_state_timer_cb(lv_timer_t *timer)
         }
         home_ui_refresh_library();
     }
+
+    // surface background media import results (long-press on a liked track)
+    home_ui_service_import();
 }
 
 void ui_state_init(void)

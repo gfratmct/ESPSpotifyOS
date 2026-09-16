@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gfratmct/ESPSpotifyOS/service/internal/config"
+	"github.com/gfratmct/ESPSpotifyOS/service/internal/handlers"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,6 +23,13 @@ func NewServer(
 		logger: logger,
 		config: config,
 	}
+}
+
+func (s *Server) RegisterTrackHandler(handler *handlers.TrackHandler) {
+	tracks := s.r.Group("/tracks", requireAPIKey(s.config.Secret))
+	tracks.GET("", handler.List)
+	tracks.POST("", handler.Import)
+	tracks.GET("/:id/stream", handler.Stream)
 }
 
 func (s *Server) Run() error {

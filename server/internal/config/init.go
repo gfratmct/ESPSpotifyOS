@@ -9,11 +9,13 @@ import (
 // godotenv file + enviroment
 
 type Config struct {
-	Host     string
-	Port     string
-	Debug    bool
-	Secret   string
-	LogLevel string
+	Host        string
+	Port        string
+	Debug       bool
+	Secret      string
+	LogLevel    string
+	DBPath      string
+	StoragePath string
 }
 
 func NewConfig() *Config {
@@ -24,10 +26,19 @@ func NewConfig() *Config {
 	}
 
 	return &Config{
-		Host:     os.Getenv("HOST"),
-		Port:     os.Getenv("PORT"),
-		Debug:    os.Getenv("DEBUG") == "true",
-		Secret:   os.Getenv("SECRET"),
-		LogLevel: os.Getenv("LOG_LEVEL"),
+		Host:        os.Getenv("HOST"),
+		Port:        os.Getenv("PORT"),
+		Debug:       os.Getenv("DEBUG") == "true",
+		Secret:      os.Getenv("SECRET"),
+		LogLevel:    os.Getenv("LOG_LEVEL"),
+		DBPath:      getEnv("DB_PATH", "data/espspotify.db"),
+		StoragePath: getEnv("STORAGE_PATH", "storage"),
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
