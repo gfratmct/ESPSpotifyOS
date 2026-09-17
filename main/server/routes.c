@@ -131,7 +131,7 @@ static void schedule_restart(void) {
 
 // ---- /submit (Spotify OAuth) -------------------------------------------------
 
-// GET /submit — serves the login page with the Spotify authorize URL injected.
+// GET /submit - serves the login page with the Spotify authorize URL injected.
 static esp_err_t handle_submit_get(httpd_req_t *req) {
     char oauth_url[OAUTH_URL_MAX];
     if (spotify_get_authorize_url(oauth_url, sizeof(oauth_url)) != ESP_OK) {
@@ -153,7 +153,7 @@ static esp_err_t handle_submit_get(httpd_req_t *req) {
     return ret;
 }
 
-// POST /submit — accepts "spotify_code=<code>", exchanges it for tokens.
+// POST /submit - accepts "spotify_code=<code>", exchanges it for tokens.
 static esp_err_t handle_submit_post(httpd_req_t *req) {
     if (req->content_len == 0 || req->content_len > SUBMIT_MAX_BODY) {
         ESP_LOGE(TAG, "Rejecting submit body of size %u", (unsigned)req->content_len);
@@ -204,7 +204,7 @@ static esp_err_t handle_submit_post(httpd_req_t *req) {
 
 // ---- /settings (Wi-Fi provisioning) ------------------------------------------
 
-// GET /settings — serves the Wi-Fi settings page with the current SSID filled.
+// GET /settings - serves the Wi-Fi settings page with the current SSID filled.
 static esp_err_t handle_settings_get(httpd_req_t *req) {
     device_state_t *device = device_state_get();
     const char *ssid = device ? (const char *)device->wifi_ssid : "";
@@ -222,7 +222,7 @@ static esp_err_t handle_settings_get(httpd_req_t *req) {
     return ret;
 }
 
-// POST /settings — saves new Wi-Fi credentials and restarts to apply them.
+// POST /settings - saves new Wi-Fi credentials and restarts to apply them.
 static esp_err_t handle_settings_post(httpd_req_t *req) {
     if (req->content_len == 0 || req->content_len > SETTINGS_MAX_BODY) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid body size");
@@ -290,7 +290,7 @@ static esp_err_t handle_settings_post(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// POST /settings/reset — restores build-time Wi-Fi defaults and restarts.
+// POST /settings/reset - restores build-time Wi-Fi defaults and restarts.
 static esp_err_t handle_settings_reset_post(httpd_req_t *req) {
     ESP_LOGW(TAG, "Wi-Fi settings reset to defaults, restarting");
     device_state_reset_wifi();
@@ -306,7 +306,7 @@ static esp_err_t handle_settings_reset_post(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// GET /wifi-scan — JSON array of nearby networks (provisioning mode only).
+// GET /wifi-scan - JSON array of nearby networks (provisioning mode only).
 static esp_err_t handle_wifi_scan_get(httpd_req_t *req) {
     static wifi_ap_info_t aps[WIFI_SCAN_MAX_APS];
     int found = wifi_scan(aps, WIFI_SCAN_MAX_APS);

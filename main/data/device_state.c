@@ -3,12 +3,15 @@
 #include <string.h>
 
 #include <esp_log.h>
+#include <nvs.h>
 
 #include "utils/storage.h"
 
 #define TAG "device_state"
 #define DEVICE_NAMESPACE "device"
 #define DEVICE_BLOB_KEY  "blob"
+#define DEVICE_VOLUME_KEY "volume"
+#define DEVICE_VOLUME_DEFAULT 80
 
 static device_state_t g_device_state;
 
@@ -67,4 +70,37 @@ esp_err_t device_state_reset_wifi(void)
 device_state_t *device_state_get(void)
 {
     return &g_device_state;
+}
+
+esp_err_t device_state_set_volume(uint8_t volume)
+{
+    if (volume > 100) volume = 100;
+
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(DEVICE_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) return err;
+
+    err = nvs_set_u32(handle, DEVICE_VOLUME_KEY, volume);
+    if (err == ESP_OK) {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+    return err;
+}
+
+uint8_t device_state_get_volume(void)
+{
+    nvs_handle_t handle;
+    if (nvs_open(DEVICE_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return DEVICE_VOLUME_DEFAULT;
+    }
+
+    uint32_t volume = DEVICE_VOLUME_DEFAULT;
+    esp_err_t err = nvs_get_u32(handle, DEVICE_VOLUME_KEY, &volume);
+    nvs_close(handle);
+
+    if (err != ESP_OK || volume > 100) {
+        return DEVICE_VOLUME_DEFAULT;
+    }
+    return (uint8_t)volume;
 }

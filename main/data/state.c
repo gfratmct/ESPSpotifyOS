@@ -50,7 +50,7 @@ static void migrate_legacy_blob(void)
     esp_err_t err = storage_get_blob(LEGACY_NAMESPACE, LEGACY_BLOB_KEY,
                                      &legacy, sizeof(legacy), &len);
     if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NOT_FOUND) {
-        return; // fresh install — nothing to migrate
+        return; // fresh install - nothing to migrate
     }
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Could not read legacy state: %s", esp_err_to_name(err));
@@ -82,7 +82,7 @@ static void migrate_legacy_blob(void)
         password = legacy.v0.wifi_password;
         screen = legacy.v0.current_screen;
     } else {
-        ESP_LOGW(TAG, "Legacy state has unexpected size %u — discarding", (unsigned)len);
+        ESP_LOGW(TAG, "Legacy state has unexpected size %u - discarding", (unsigned)len);
         storage_erase_namespace(LEGACY_NAMESPACE);
         return;
     }

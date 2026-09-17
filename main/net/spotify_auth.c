@@ -27,7 +27,7 @@
     "playlist-read-private user-read-playback-state user-modify-playback-state " \
     "user-read-currently-playing app-remote-control streaming"
 
-// http_response_t is ~8.7 KB — always heap-allocate it, never put it on the stack
+// http_response_t is ~8.7 KB - always heap-allocate it, never put it on the stack
 static http_response_t *resp_alloc(void)
 {
     return calloc(1, sizeof(http_response_t));
@@ -44,7 +44,7 @@ static esp_err_t build_basic_auth_header(char *out, size_t out_size)
     if (cred_len <= 0 || cred_len >= (int)sizeof(credentials)) {
         return ESP_ERR_INVALID_SIZE;
     }
-    // separate input/output buffers — mbedtls_base64_encode cannot work in-place
+    // separate input/output buffers - mbedtls_base64_encode cannot work in-place
     int ret = mbedtls_base64_encode(b64, sizeof(b64), &b64_len,
                                     (const uint8_t *)credentials, cred_len);
     if (ret != 0) {
@@ -107,9 +107,9 @@ void spotify_logout(void)
 {
     auth_state_t *state = auth_state_get();
     if (!state || !state->is_logged_in) {
-        return; // no session to drop — no state change
+        return; // no session to drop - no state change
     }
-    ESP_LOGW(TAG, "Spotify session invalid — logging out");
+    ESP_LOGW(TAG, "Spotify session invalid - logging out");
     memset(state->spotify_token, 0, sizeof(state->spotify_token));
     memset(state->refresh_token, 0, sizeof(state->refresh_token));
     state->token_expires_at = 0;
@@ -205,7 +205,7 @@ esp_err_t spotify_refresh_access_token(void)
         return err;
     }
     if (resp->status_code == 400 || resp->status_code == 401 || resp->status_code == 403) {
-        // Spotify rejected the refresh token (e.g. invalid_grant) — dead session
+        // Spotify rejected the refresh token (e.g. invalid_grant) - dead session
         ESP_LOGE(TAG, "Token refresh rejected (status=%d): %.200s",
                  resp->status_code, resp->data);
         free(resp);

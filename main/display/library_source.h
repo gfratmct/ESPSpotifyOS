@@ -27,11 +27,19 @@ typedef enum {
     TRANSFER_UNAVAILABLE // transfer target not configured
 } transfer_request_result_t;
 
+// Where an item's audio lives (drives tap-to-play).
+typedef enum {
+    LIBRARY_ORIGIN_NONE = 0, // not directly playable (e.g. Spotify liked tracks)
+    LIBRARY_ORIGIN_SERVER,   // stream from the media server (item->id/encoding)
+    LIBRARY_ORIGIN_FILE,     // local file (item->transfer_key is the path)
+} library_item_origin_t;
+
 // A collection the library list can page through. Implementations live in
 // library_sources.c.
 typedef struct library_source {
     const char *name;           // tab label
     const char *empty_message;  // shown when the first page is empty
+    library_item_origin_t origin;
     // Fetches up to `max` items starting at `offset`. Must fill *out_count and,
     // when known, *out_total. Returns ESP_OK on success.
     esp_err_t (*fetch)(int offset, int limit, library_item_t *out, size_t max,

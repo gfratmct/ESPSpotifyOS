@@ -10,6 +10,7 @@
 
 #include "display/library_list.h"
 #include "display/library_source.h"
+#include "data/device_state.h"
 
 #define TAG "library_screen"
 
@@ -31,6 +32,35 @@ static void select_tab(int index);
 static void tab_event_cb(lv_event_t *e)
 {
     select_tab((int)(intptr_t)lv_event_get_user_data(e));
+}
+
+// Top-right shortcut back into the player (playback keeps running in the
+// background when you leave the player screen).
+static void now_playing_cb(lv_event_t *e)
+{
+    (void)e;
+    device_state_t *device = device_state_get();
+    if (device) {
+        device->current_screen = SCREEN_ID_PLAYER;
+    }
+}
+
+static void create_now_playing_button(lv_obj_t *parent)
+{
+    lv_obj_t *btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, 28, 28);
+    lv_obj_set_pos(btn, 172, 0);
+    lv_obj_set_style_radius(btn, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_t *label = lv_label_create(btn);
+    lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_label_set_text(label, LV_SYMBOL_AUDIO);
+    lv_obj_center(label);
+
+    lv_obj_add_event_cb(btn, now_playing_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static lv_obj_t *create_tab(lv_obj_t *parent, const char *text, int index)
@@ -90,6 +120,7 @@ void library_screen_init(void)
 
     lv_obj_t *parent = objects.panel_1 ? objects.panel_1 : objects.home;
     if (parent) {
+        create_now_playing_button(parent);
         for (int i = 0; i < TAB_COUNT; i++) {
             s_tab_buttons[i] = create_tab(parent, s_sources[i]->name, i);
         }
@@ -114,7 +145,7 @@ void library_screen_service_transfer(void)
 
 void library_screen_request_refresh(void)
 {
-    // consumed by the ui_state loop in the LVGL task — safe from any task
+    // consumed by the ui_state loop in the LVGL task - safe from any task
     s_refresh_requested = true;
 }
 

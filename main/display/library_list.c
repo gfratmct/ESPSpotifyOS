@@ -20,6 +20,7 @@
 static lv_obj_t *s_container;
 static lv_obj_t *s_status_label;
 static const library_source_t *s_source;
+static library_list_tap_cb_t s_tap_cb;
 
 static library_item_t s_items[LIST_PAGE_SIZE];
 static size_t s_loaded_count;
@@ -58,6 +59,10 @@ static void item_event_handler(lv_event_t *e)
         lv_obj_add_state(item, LV_STATE_CHECKED);
         if (entry) {
             ESP_LOGI(TAG, "Selected: %s - %s", entry->title, entry->subtitle);
+            if (s_tap_cb) {
+                size_t index = (size_t)(entry - s_items);
+                s_tap_cb(s_source, s_items, s_loaded_count, index);
+            }
         }
     }
 }
@@ -236,6 +241,11 @@ void library_list_attach(lv_obj_t *container, lv_obj_t *status_label)
 {
     s_container = container;
     s_status_label = status_label;
+}
+
+void library_list_set_tap_callback(library_list_tap_cb_t cb)
+{
+    s_tap_cb = cb;
 }
 
 void library_list_set_source(const library_source_t *source)

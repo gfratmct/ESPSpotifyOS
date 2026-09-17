@@ -46,6 +46,7 @@ static transfer_request_result_t spotify_start_transfer(const library_item_t *it
 static const library_source_t s_spotify_source = {
     .name = "Spotify",
     .empty_message = "No liked songs yet",
+    .origin = LIBRARY_ORIGIN_NONE,
     .fetch = spotify_fetch,
     .start_transfer = spotify_start_transfer,
 };
@@ -90,6 +91,7 @@ static transfer_request_result_t server_start_transfer(const library_item_t *ite
 static const library_source_t s_server_source = {
     .name = "Server",
     .empty_message = "Server library empty",
+    .origin = LIBRARY_ORIGIN_SERVER,
     .fetch = server_fetch,
     .start_transfer = server_start_transfer,
 };
@@ -139,7 +141,10 @@ static esp_err_t sd_fetch(int offset, int limit, library_item_t *out, size_t max
         strncpy(stem, files[i].name, sizeof(stem) - 1);
         stem[sizeof(stem) - 1] = '\0';
         char *dot = strrchr(stem, '.');
-        if (dot) *dot = '\0';
+        if (dot) {
+            strncpy(it->encoding, dot + 1, sizeof(it->encoding) - 1);
+            *dot = '\0';
+        }
 
         split_stem(stem, it);
         strncpy(it->transfer_key, files[i].path, sizeof(it->transfer_key) - 1);
@@ -151,6 +156,7 @@ static esp_err_t sd_fetch(int offset, int limit, library_item_t *out, size_t max
 static const library_source_t s_sd_source = {
     .name = "SD",
     .empty_message = "SD storage empty",
+    .origin = LIBRARY_ORIGIN_FILE,
     .fetch = sd_fetch,
     .start_transfer = NULL,
 };

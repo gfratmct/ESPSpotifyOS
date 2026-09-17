@@ -40,6 +40,11 @@ esp_err_t device_state_save(void);
  */
 esp_err_t device_state_reset_wifi(void);
 
+// Playback volume (0-100), stored as a separate NVS key so the blob layout
+// never has to change. device_state_get_volume() returns 80 when unset.
+esp_err_t device_state_set_volume(uint8_t volume);
+uint8_t device_state_get_volume(void);
+
 /**
  * @brief Access the global singleton device state.
  */

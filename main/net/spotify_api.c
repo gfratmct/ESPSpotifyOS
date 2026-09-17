@@ -15,7 +15,7 @@
 
 #define SPOTIFY_API_BASE "https://api.spotify.com/v1"
 
-// http_response_t is ~8.7 KB — always heap-allocate it, never put it on the stack
+// http_response_t is ~8.7 KB - always heap-allocate it, never put it on the stack
 static http_response_t *resp_alloc(void)
 {
     return calloc(1, sizeof(http_response_t));
@@ -147,7 +147,7 @@ esp_err_t spotify_get_saved_tracks(int limit, int offset, const char *market,
     free(resp);
     if (!root) {
         ESP_LOGE(TAG, "Failed to parse tracks response (%s)",
-                 was_truncated ? "body truncated — reduce limit/fields" : "malformed JSON");
+                 was_truncated ? "body truncated - reduce limit/fields" : "malformed JSON");
         return ESP_FAIL;
     }
 

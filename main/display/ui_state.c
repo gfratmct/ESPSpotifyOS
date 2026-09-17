@@ -8,6 +8,7 @@
 #include "data/auth_state.h"
 #include "data/device_state.h"
 #include "display/library_screen.h"
+#include "display/player_screen.h"
 
 #define TAG "ui_state"
 #define UI_STATE_POLL_PERIOD_MS 250
@@ -43,7 +44,7 @@ static void ui_state_timer_cb(lv_timer_t *timer)
     // service library refresh requests (e.g. from the web login handler)
     if (library_screen_take_refresh_request()) {
         if (!auth->is_logged_in) {
-            return; // not logged in (anymore) — nothing to populate
+            return; // not logged in (anymore) - nothing to populate
         }
         if (device->current_screen != SCREEN_ID_HOME) {
             device->current_screen = SCREEN_ID_HOME;
@@ -55,6 +56,9 @@ static void ui_state_timer_cb(lv_timer_t *timer)
 
     // surface background media transfer results (long-press on a liked track)
     library_screen_service_transfer();
+
+    // keep the player screen in sync with the playback engine
+    player_screen_sync();
 }
 
 void ui_state_init(void)

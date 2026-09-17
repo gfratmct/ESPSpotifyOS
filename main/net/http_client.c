@@ -27,7 +27,7 @@ static esp_err_t http_client_event_handler(esp_http_client_event_t *evt) {
                 resp->data_len += evt->data_len;
                 resp->data[resp->data_len] = '\0';
             } else if (evt->data_len > 0) {
-                // body larger than the buffer — flag it so callers can report
+                // body larger than the buffer - flag it so callers can report
                 // truncation instead of parsing a silently cut-off payload
                 resp->truncated = true;
             }

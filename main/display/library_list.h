@@ -12,6 +12,13 @@ extern "C" {
 // borrowed (owned by the screen) and may be NULL until the screen exists.
 void library_list_attach(lv_obj_t *container, lv_obj_t *status_label);
 
+// Tap callback for an item. `items`/`index` describe the item within the
+// currently loaded page. Runs in the LVGL task context.
+typedef void (*library_list_tap_cb_t)(const library_source_t *source,
+                                      const library_item_t *items,
+                                      size_t count, size_t index);
+void library_list_set_tap_callback(library_list_tap_cb_t cb);
+
 // Sets the data source. Does not fetch; call library_list_refresh() for that.
 void library_list_set_source(const library_source_t *source);
 

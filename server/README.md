@@ -1,4 +1,4 @@
-# ESP Spotify Player — Media Service
+# ESP Spotify Player - Media Service
 
 > **Disclaimer**: This is an **unofficial, hobby project** built for **personal use only**. It is **not affiliated with, endorsed by, or connected to Spotify**. Do not use it for commercial purposes.
 
@@ -8,13 +8,13 @@ A small Go backend ("Media Service") that backs the ESP Spotify player: it impor
 
 Part of the larger ESPSpotifyOS project. While the ESP32 provides the touchscreen UI, this service handles the heavy lifting:
 
-1. **Search & download** — given a track (or a query), it finds matching audio via **yt-dlp** on YouTube Music and downloads it as an MP3.
-2. **Store** — track metadata lives in a SQLite database; the MP3 files are kept on disk.
-3. **Stream** — serves the stored media back to clients (like the ESP32) so they can play the imported library.
+1. **Search & download** - given a track (or a query), it finds matching audio via **yt-dlp** on YouTube Music and downloads it as an MP3.
+2. **Store** - track metadata lives in a SQLite database; the MP3 files are kept on disk.
+3. **Stream** - serves the stored media back to clients (like the ESP32) so they can play the imported library.
 
 ## Current State
 
-A working first version — list, import, and stream are wired end to end.
+A working first version - list, import, and stream are wired end to end.
 
 ### Implemented
 
@@ -37,7 +37,7 @@ Import returns `201` when the track was newly downloaded, `200` with the existin
 
 Every track in the list carries an `encoding` field (`mp3`, `wav`, `aac`, `flac`, `ogg`, `opus`, ...) so players know how to decode it up front.
 
-Streaming serves the file with an explicit, content-sniffed `Content-Type` (`audio/mpeg`, `audio/wav`, ...), a short `X-Audio-Encoding` codec header, and full HTTP `Range` support (`206 Partial Content`, `Accept-Ranges: bytes`) so clients — like the ESP32 audio libraries — can detect the codec from the headers and seek while streaming.
+Streaming serves the file with an explicit, content-sniffed `Content-Type` (`audio/mpeg`, `audio/wav`, ...), a short `X-Audio-Encoding` codec header, and full HTTP `Range` support (`206 Partial Content`, `Accept-Ranges: bytes`) so clients - like the ESP32 audio libraries - can detect the codec from the headers and seek while streaming.
 
 ## Requirements
 
@@ -55,13 +55,13 @@ cp .env.example .env
 
 | Env var | Default | Description |
 |---|---|---|
-| `HOST` | — | Bind address (empty = all interfaces) |
-| `PORT` | — | Listen port |
+| `HOST` | - | Bind address (empty = all interfaces) |
+| `PORT` | - | Listen port |
 | `DB_PATH` | `data/espspotify.db` | SQLite database file |
 | `STORAGE_PATH` | `storage` | Directory for downloaded MP3s |
 | `DEBUG` | `false` | Reserved (parsed, not yet used) |
-| `SECRET` | — | Pre-shared API key (see below) |
-| `LOG_LEVEL` | — | Reserved (parsed, not yet used) |
+| `SECRET` | - | Pre-shared API key (see below) |
+| `LOG_LEVEL` | - | Reserved (parsed, not yet used) |
 
 ### Authentication
 

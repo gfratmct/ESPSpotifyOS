@@ -13,10 +13,13 @@
 #include "data/state.h"
 #include "display/lcd.h"
 #include "display/library_screen.h"
+#include "display/player_screen.h"
 #include "display/setup_screen.h"
 #include "display/ui_state.h"
 #include "net/spotify_auth.h"
 #include "server/webserver.h"
+#include "services/audio_output.h"
+#include "services/player.h"
 #include "storage/sd_storage.h"
 #include "utils/storage.h"
 
@@ -36,7 +39,7 @@ void app_main(void)
     ESP_LOGI(TAG, "initializing display");
     ESP_ERROR_CHECK(lcd_init());
     lcd_backlight_init();
-    lcd_backlight_set(20);
+    lcd_backlight_set(50);
 
     // SD shares the LCD SPI bus, so mount it after lcd_init(). A missing card
     // is not fatal: the offline tab simply reports storage as unavailable.
@@ -45,12 +48,18 @@ void app_main(void)
     ESP_LOGI(TAG, "initializing ui");
     ui_init();
     library_screen_init();
+    player_screen_init();
+
+    // Audio output + playback engine (I2S output is optional: it stays silent
+    // when the PLAYER_AUX_* pins are not configured).
+    audio_output_init();
+    player_init();
 
     // Connect to Wi-Fi. On failure, fall back to a provisioning access point
     // so the user can set credentials from the settings page.
     bool wifi_ok = wifi_wait_connected(15000);
     if (!wifi_ok) {
-        ESP_LOGE(TAG, "Wi-Fi connection failed — starting provisioning AP");
+        ESP_LOGE(TAG, "Wi-Fi connection failed - starting provisioning AP");
         wifi_start_ap();
     } else {
         ESP_LOGI(TAG, "Wifi connected successfully!");

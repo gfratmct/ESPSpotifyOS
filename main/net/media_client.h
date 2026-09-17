@@ -24,7 +24,7 @@ bool media_client_configured(void);
  * @brief Import a track into the media service by searching for it.
  *
  * The service searches YouTube Music for `query` and imports the first match.
- * Blocks for the duration of the download (can take a minute) — call from a
+ * Blocks for the duration of the download (can take a minute) - call from a
  * background task, never from the LVGL task.
  *
  * @param query        search query, e.g. "artist - title"

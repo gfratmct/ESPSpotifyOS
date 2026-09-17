@@ -8,9 +8,9 @@ An ESP-IDF application for ESP32 that pairs with a small media server to turn yo
 
 A personal Spotify companion player. The idea is simple:
 
-1. **Import** — point the companion server at your Spotify library (e.g. liked tracks) to know what you want to play.
-2. **Fetch** — the server finds matching audio for each track via **yt-dlp** and stores it locally.
-3. **Stream** — the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through a speaker.
+1. **Import** - point the companion server at your Spotify library (e.g. liked tracks) to know what you want to play.
+2. **Fetch** - the server finds matching audio for each track via **yt-dlp** and stores it locally.
+3. **Stream** - the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through a speaker.
 
 In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32 is the physical player you interact with on a touchscreen.
 
@@ -24,15 +24,16 @@ The project is a work in progress. Here's where it stands today.
 - **Wi-Fi**: station-mode auto-connect with reconnect handling. Credentials are seeded from Kconfig on first boot and persisted in NVS.
 - **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. See [Wi-Fi Provisioning](#wi-fi-provisioning).
 - **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh.
-- **Library browsing**: tabbed library screen — **Spotify** (liked tracks, 24 per page, infinite scroll), **Server** (tracks on the media server), and **SD** (local cache). Long-press an item to act on it.
-- **Import to the media server**: long-press a liked track — the server searches for matching audio (yt-dlp), downloads it, and stores it. Deduplication is automatic (re-imports return the existing track).
+- **Library browsing**: tabbed library screen - **Spotify** (liked tracks, 24 per page, infinite scroll), **Server** (tracks on the media server), and **SD** (local cache). Tap a Server/SD item to play it; long-press an item to act on it (import / download).
+- **Player**: player screen with now-playing info, progress bar, prev / play-pause / next, and volume. Plays Server tracks via HTTP streaming (resuming with HTTP Range if the stream drops) and SD tracks from the cache, decoded with `esp_audio_codec`. Listening to a Server track also saves it to the SD cache. Playback continues in the background when you leave the screen (the library's top-right button reopens it).
+- **Import to the media server**: long-press a liked track - the server searches for matching audio (yt-dlp), downloads it, and stores it. Deduplication is automatic (re-imports return the existing track).
 - **SD cache / offline**: imported and downloaded tracks are streamed to the SD card (FatFS over the shared SPI bus) so they are available offline. The SD tab lists cached files. *(SD hardware path is implemented but not yet validated on-device.)*
 - **Media server (backend)**: track search/download via `yt-dlp`, SQLite metadata store, MP3 storage, paginated listing, query/URL import, and a streaming endpoint with HTTP Range support. See [`server/`](server/README.md).
 
 ### What's next
 
-- **Audio playback**: no audio output path exists yet — no I2S/DAC/codec code. `track_cache` already streams track audio into the SD cache, ready to tee into a decoder/player.
-- **Playback actions**: play/pause, next/previous, and volume are planned but not implemented (tap on a track currently only selects it).
+- **Audio output wiring**: set `CONFIG_PLAYER_AUX_*_GPIO` for an external I2S DAC (e.g. PCM5102). Until then the player runs in **silent mode** - the UI, progress, decoding and SD caching all work, but no audio is produced.
+- **Playback polish**: seeking, album art, and a queue that spans pages (next/prev currently stay within the loaded page).
 
 ---
 
@@ -69,6 +70,7 @@ ESPSpotifyOS/
 │   │   ├── library_screen.c/.h     # library screen shell + tab bar
 │   │   ├── library_source.h        # data-source interface (Spotify/Server/SD)
 │   │   ├── library_sources.c       # source adapters
+│   │   ├── player_screen.c/.h      # player screen + tap-to-play
 │   │   ├── setup_screen.c/.h       # setup screen status helper
 │   │   └── ui_state.c/.h           # UI state sync loop
 │   ├── net/
@@ -80,6 +82,8 @@ ESPSpotifyOS/
 │   │   ├── webserver.c/.h          # embedded HTTP server lifecycle + route registration
 │   │   └── routes.c/.h             # HTTP endpoints (/submit OAuth, /settings, /wifi-scan)
 │   ├── services/
+│   │   ├── audio_output.c/.h       # I2S output + software volume
+│   │   ├── player.c/.h             # playback engine (decode/stream/queue)
 │   │   ├── track_cache.c/.h        # streams tracks to the SD cache
 │   │   └── transfer_manager.c/.h   # background import/download worker
 │   ├── storage/
@@ -118,6 +122,7 @@ Configure Wi-Fi and Spotify credentials:
 - `CONFIG_PLAYER_SPOTIFY_CLIENT_ID` / `CONFIG_PLAYER_SPOTIFY_CLIENT_SECRET`: your Spotify app credentials (from the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
 - `CONFIG_PLAYER_MEDIA_SERVICE_URL` / `CONFIG_PLAYER_MEDIA_API_KEY`: the media server's address (e.g. `http://192.168.1.50:8081`) and the `SECRET` value from its `.env` file. Needed for the long-press import feature.
 - `CONFIG_PLAYER_AP_SSID` / `CONFIG_PLAYER_AP_PASSWORD`: the provisioning access point (see below). The AP password must be at least 8 characters, or empty for an open AP.
+- `CONFIG_PLAYER_AUX_BCK_GPIO` / `_LRCK_GPIO` / `_DIN_GPIO` / `_SCK_GPIO`: I2S output pins for an external DAC. Leave at `-1` for silent mode (player UI works, no audio).
 
 ### 3. Build and Flash
 
@@ -156,7 +161,7 @@ provisioning-AP mode:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/submit` | Login page — builds a Spotify OAuth URL and lets you paste the authorization code back |
+| `GET` | `/submit` | Login page - builds a Spotify OAuth URL and lets you paste the authorization code back |
 | `POST` | `/submit` | Accepts `spotify_code=<code>`, exchanges it for tokens, and stores them |
 | `GET` | `/settings` | Wi-Fi settings page |
 | `POST` | `/settings` | Accepts `ssid=<ssid>&password=<password>`, saves them, and restarts |

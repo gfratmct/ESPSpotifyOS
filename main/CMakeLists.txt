@@ -9,6 +9,7 @@ set(COMPONENT_SRCS
   "display/library_list.c"
   "display/library_screen.c"
   "display/library_sources.c"
+  "display/player_screen.c"
   "display/setup_screen.c"
   "display/ui_state.c"
   "net/http_client.c"
@@ -19,6 +20,8 @@ set(COMPONENT_SRCS
   "server/routes.c"
   "services/transfer_manager.c"
   "services/track_cache.c"
+  "services/audio_output.c"
+  "services/player.c"
   "storage/sd_storage.c"
   "utils/storage.c"
 )
@@ -47,6 +50,7 @@ set(CONNECTIVITY_DEPS
 set(DRIVER_DEPS
   esp_driver_spi
   esp_driver_ledc
+  esp_driver_i2s
   esp_driver_sdspi
   sdmmc
   fatfs
@@ -56,6 +60,7 @@ set(UI_AUDIO_DEPS
   esp_lcd
   lvgl
   ui
+  esp_audio_codec
 )
 
 set(COMPONENT_PRIV_REQUIRES

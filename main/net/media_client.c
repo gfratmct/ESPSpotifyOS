@@ -17,7 +17,7 @@
 #define MEDIA_IMPORT_TIMEOUT_MS 120000 // yt-dlp download can take a while
 #define MEDIA_LIST_TIMEOUT_MS   10000
 
-// http_response_t is ~8.7 KB — always heap-allocate it, never put it on the stack
+// http_response_t is ~8.7 KB - always heap-allocate it, never put it on the stack
 static http_response_t *media_resp_alloc(void)
 {
     return calloc(1, sizeof(http_response_t));
@@ -161,7 +161,7 @@ esp_err_t media_list_tracks(int limit, int offset,
         return ESP_FAIL;
     }
     if (resp->truncated) {
-        ESP_LOGW(TAG, "list response truncated — reduce limit");
+        ESP_LOGW(TAG, "list response truncated - reduce limit");
     }
 
     cJSON *root = cJSON_Parse(resp->data);
