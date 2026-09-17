@@ -13,6 +13,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "lvgl.h"
 
 #define LCD_SPI_HOST SPI2_HOST
 #define LCD_SPI_MOSI_GPIO 13
@@ -75,13 +76,6 @@ static void touch_read(lv_indev_t *indev, lv_indev_data_t *data) {
     }
 
     if (err == ESP_OK && count > 0) {
-        /* Map the XPT2046 axes onto the rotated (landscape) display: the
-         * driver reports x along the short panel axis and y along the long
-         * axis, both inverted relative to the swap_xy+mirrored panel. */
-        // last_x = (uint16_t)(((uint32_t)(CONFIG_LCD_VRES - touch_data->y) *
-        //                      CONFIG_LCD_HRES) / CONFIG_LCD_VRES);
-        // last_y = (uint16_t)(((uint32_t)(CONFIG_LCD_HRES - touch_data->x) *
-        //                      CONFIG_LCD_VRES) / CONFIG_LCD_HRES);
         last_x = touch_data->x;
         last_y = touch_data->y;
         data->point.x = last_x;
@@ -230,16 +224,6 @@ esp_err_t lcd_start_lvgl(void)
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;
-}
-
-lv_display_t *lcd_get_display(void)
-{
-    return s_display;
-}
-
-esp_lcd_touch_handle_t lcd_get_touch(void)
-{
-    return s_touch;
 }
 
 void lcd_backlight_init(void) {

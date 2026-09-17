@@ -1,21 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Settings - ESPSpotifyOS</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wi-Fi Settings - ESPSpotifyOS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #181818;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      max-width: 400px;
+      width: 90%;
+    }
+    h1 { color: #1DB954; margin-top: 0; }
+    label { display: block; margin-top: 16px; font-size: 14px; color: #b3b3b3; }
+    input[type="text"], input[type="password"], select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #121212;
+      color: #fff;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #1DB954;
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 20px;
+      width: 100%;
+    }
+    button:hover { background: #1ed760; }
+    button.secondary {
+      background: transparent;
+      border: 1px solid #555;
+      color: #ccc;
+      font-weight: normal;
+      margin-top: 10px;
+    }
+    button.secondary:hover { background: #242424; }
+    .note { color: #888; font-size: 13px; margin-top: 18px; }
+  </style>
 </head>
 <body>
-    <!-- here I want to be able to update the settings of my ESP32 as
-        wifi creds, debug, etc. For now only wifi -->
-    <form id="wifi-settings-form">
-        <label for="ssid">WiFi SSID:</label>
-        <input type="text" id="ssid" name="ssid" required>
-        <br>
-        <label for="password">WiFi Password:</label>
-        <input type="password" id="password" name="password" required>
-        <br>
-        <button type="submit">Save</button>
+  <div class="card">
+    <h1>Wi-Fi Settings</h1>
+
+    <label for="networks">Nearby networks</label>
+    <select id="networks">
+      <option value="">Select a network (or type below)</option>
+    </select>
+
+    <form action="/settings" method="POST">
+      <label for="ssid">Wi-Fi SSID</label>
+      <input type="text" id="ssid" name="ssid" value="{{WIFI_SSID}}" maxlength="31" required>
+
+      <label for="password">Wi-Fi Password</label>
+      <input type="password" id="password" name="password" maxlength="63"
+             placeholder="Leave empty for an open network">
+
+      <button type="submit">Save &amp; Restart</button>
     </form>
+
+    <form action="/settings/reset" method="POST"
+          onsubmit="return confirm('Restore the built-in Wi-Fi defaults?');">
+      <button type="submit" class="secondary">Reset to Defaults</button>
+    </form>
+
+    <p class="note">The device restarts and connects to the new network after saving.</p>
+  </div>
+
+  <script>
+    // Populate the network dropdown with the scan results.
+    const select = document.getElementById('networks');
+    const ssidInput = document.getElementById('ssid');
+
+    select.addEventListener('change', () => {
+      if (select.value) {
+        ssidInput.value = select.value;
+      }
+    });
+
+    fetch('/wifi-scan')
+      .then((res) => res.ok ? res.json() : [])
+      .then((networks) => {
+        networks.forEach((net) => {
+          const option = document.createElement('option');
+          option.value = net.ssid;
+          option.textContent = net.ssid + (net.secure ? ' \uD83D\uDD12' : '');
+          select.appendChild(option);
+        });
+      })
+      .catch(() => { /* scan unavailable, keep manual entry */ });
+  </script>
 </body>
 </html>

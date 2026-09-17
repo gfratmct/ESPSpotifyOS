@@ -207,21 +207,29 @@ menu "Player Configuration"
         help
             Client Secret of your Spotify Developer app to retrieve access token.
 
-    config PLAYER_SPOTIFY_REDIRECT_PORT
-        int "Spotify OAuth paste-page HTTP port"
-        default 80
+    config PLAYER_WEBSERVER_PORT
+        int "Embedded web server port"
+        default 8080
         help
-            Local HTTP server port that serves the page where the user pastes
-            the authorization code copied from the browser address bar.
+            Port for the on-device HTTP server that serves the Spotify login
+            page. The OAuth redirect URI registered in the Spotify Developer
+            Dashboard must use the same port
+            (http://127.0.0.1:PORT/callback).
 
-    config PLAYER_SPOTIFY_LOOPBACK_PORT
-        int "Spotify OAuth loopback redirect port"
-        default 8888
+    config PLAYER_AP_SSID
+        string "Provisioning access point SSID"
+        default "ESPSpotifyOS-Setup"
         help
-            Port used in the registered redirect URI
-            (http://127.0.0.1:PORT/callback). Spotify only accepts HTTPS or
-            loopback IP literals, so this must exactly match the redirect URI
-            added in the Spotify Developer Dashboard.
+            SSID broadcast when the device cannot connect to Wi-Fi and falls
+            back to provisioning mode. Join it and open
+            http://192.168.4.1:PORT/settings to set Wi-Fi credentials.
+
+    config PLAYER_AP_PASSWORD
+        string "Provisioning access point password"
+        default "spotify-setup"
+        help
+            WPA2 password for the provisioning access point (at least 8
+            characters). Leave empty for an open access point.
 
     config PLAYER_MEDIA_SERVICE_URL
         string "Media service base URL"

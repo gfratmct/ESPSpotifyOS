@@ -1,9 +1,13 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+
 #include "esp_err.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Profile of the currently logged-in Spotify user (/v1/me)
 typedef struct {
@@ -20,33 +24,6 @@ typedef struct {
     char uri[128];          // spotify:track:<id>
     int duration_ms;
 } spotify_track_t;
-
-/**
- * @brief Build the Spotify authorize (login) URL the user opens in a browser
- *        to grant this device access (used by the /submit GET route).
- */
-esp_err_t spotify_get_authorize_url(char *out, size_t out_size);
-
-/**
- * @brief Exchange an OAuth authorization code (from the browser redirect) for
- *        an access/refresh token pair and persist them into app_state.
- *        Used by the /submit POST route once the user pastes the code back.
- */
-esp_err_t spotify_exchange_code_for_token(const char *code);
-
-/**
- * @brief Refresh the access token using the stored refresh token.
- *        Called automatically by the API helpers below on expiry/401.
- */
-esp_err_t spotify_refresh_access_token(void);
-
-/**
- * @brief Drop the stored Spotify session: tokens are cleared, is_logged_in
- *        becomes false, the login screen is selected (the ui_state loop
- *        switches to it) and the state is persisted. Called automatically
- *        when Spotify rejects the refresh token (dead session).
- */
-void spotify_logout(void);
 
 /**
  * @brief Fetch the current user's profile (/v1/me). Also serves as an
@@ -69,3 +46,7 @@ esp_err_t spotify_get_auth_info(spotify_auth_t *out);
 esp_err_t spotify_get_saved_tracks(int limit, int offset, const char *market,
                                    spotify_track_t *out_tracks, size_t max_tracks,
                                    size_t *out_count, int *out_total);
+
+#ifdef __cplusplus
+}
+#endif

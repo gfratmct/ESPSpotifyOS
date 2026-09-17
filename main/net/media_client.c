@@ -1,4 +1,4 @@
-#include "media.h"
+#include "net/media_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +7,7 @@
 #include <esp_log.h>
 #include <cJSON.h>
 
-#include "utils/http.h"
+#include "net/http_client.h"
 
 #define TAG "media"
 

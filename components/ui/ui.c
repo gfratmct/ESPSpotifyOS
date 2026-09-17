@@ -26,7 +26,3 @@ void ui_init() {
     create_screens();
     loadScreen(SCREEN_ID_HOME);
 }
-
-void ui_tick() {
-    tick_screen(currentScreen);
-}

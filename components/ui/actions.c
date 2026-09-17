@@ -8,12 +8,3 @@
 void pp_anim_stop_timelines_for_deleted_tree(lv_obj_t * root) {
     (void)root;
 }
-
-
-// Event callback implementations
-
-// Event callback for connect_to_spotify on clicked
-void connect_to_spotify_clicked_cb(lv_event_t * e) {
-    act_spotify_connect();
-}
-

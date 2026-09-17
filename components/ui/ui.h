@@ -9,7 +9,6 @@ extern "C" {
 #endif
 
 void ui_init();
-void ui_tick();
 
 void loadScreen(enum ScreensEnum screenId);
 

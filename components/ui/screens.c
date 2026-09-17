@@ -159,7 +159,6 @@ void create_screen_setup() {
 
     // Event callback registrations
     lv_obj_add_flag(objects.connect_to_spotify, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(objects.connect_to_spotify, connect_to_spotify_clicked_cb, LV_EVENT_CLICKED, NULL);
 
     tick_screen_setup();
 }

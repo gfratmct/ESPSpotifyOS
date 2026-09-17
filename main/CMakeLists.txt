@@ -1,23 +1,31 @@
 set(COMPONENT_SRCS
   "main.c"
-  "actions/app_actions.c"
   "connectivity/wifi.c"
-  "data/settings.c"
+  "core/time_sync.c"
+  "data/auth_state.c"
+  "data/device_state.c"
   "data/state.c"
   "display/lcd.c"
-  "display/home_ui.c"
+  "display/library_list.c"
+  "display/library_screen.c"
+  "display/library_sources.c"
+  "display/setup_screen.c"
   "display/ui_state.c"
-  "server/http.c"
-  "utils/http.c"
-  "utils/media.c"
-  "utils/spotify.c"
+  "net/http_client.c"
+  "net/media_client.c"
+  "net/spotify_auth.c"
+  "net/spotify_api.c"
+  "server/webserver.c"
+  "server/routes.c"
+  "services/transfer_manager.c"
+  "services/track_cache.c"
+  "storage/sd_storage.c"
   "utils/storage.c"
-  "utils/blob_store.c"
-  "utils/stream_debug.c"
 )
 
 set(COMPONENT_EMBED_TXTFILES
   "web/submit.html"
+  "web/settings.html"
 )
 
 set(CORE_DEPS
@@ -34,24 +42,20 @@ set(CONNECTIVITY_DEPS
   mbedtls
   esp_http_client
   esp_http_server
-  bt
 )
 
 set(DRIVER_DEPS
   esp_driver_spi
   esp_driver_ledc
-  esp_driver_dac
   esp_driver_sdspi
   sdmmc
   fatfs
-  esp_ringbuf
 )
 
 set(UI_AUDIO_DEPS
   esp_lcd
   lvgl
   ui
-  esp_audio_codec
 )
 
 set(COMPONENT_PRIV_REQUIRES
@@ -67,12 +71,3 @@ idf_component_register(
   PRIV_REQUIRES ${COMPONENT_PRIV_REQUIRES}
   EMBED_TXTFILES ${COMPONENT_EMBED_TXTFILES}
 )
-
-set(PRESERVE_UI_ACTIONS
-    "-Wl,-u,act_spotify_connect"
-    # Add future UI action symbols here:
-    # "-Wl,-u,act_play_pause"
-    # "-Wl,-u,act_next_track"
-)
-# Preserve symbols from linker garbage collection
-target_link_options(${COMPONENT_LIB} INTERFACE ${PRESERVE_UI_ACTIONS})

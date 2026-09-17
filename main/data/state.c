@@ -1,17 +1,33 @@
 #include "data/state.h"
+
 #include <string.h>
-#include "esp_log.h"
-#include "nvs.h"
+
+#include <esp_log.h>
+#include <nvs.h>
+
+#include "data/auth_state.h"
+#include "data/device_state.h"
 #include "utils/storage.h"
 
-#define TAG "app_state"
-#define STATE_NAMESPACE "app_state"
-#define STATE_BLOB_KEY "state_blob"
+#define TAG "state"
 
-static app_state_t g_app_state;
+// Legacy combined blob (namespace/key) written by firmware before the
+// auth/device split. Kept only for migration.
+#define LEGACY_NAMESPACE "app_state"
+#define LEGACY_BLOB_KEY  "state_blob"
 
-// NVS blob layout from before the token buffers were enlarged to 512 bytes.
-// Kept only so old state can be migrated instead of discarded.
+// Current legacy layout: 512-byte token buffers.
+typedef struct {
+    uint8_t spotify_token[512];
+    uint8_t refresh_token[512];
+    uint8_t wifi_ssid[32];
+    uint8_t wifi_password[64];
+    uint32_t token_expires_at;
+    bool is_logged_in;
+    enum ScreensEnum current_screen;
+} legacy_state_v1_t;
+
+// Original layout: 256-byte token buffers.
 typedef struct {
     uint8_t spotify_token[256];
     uint8_t refresh_token[256];
@@ -20,102 +36,88 @@ typedef struct {
     uint32_t token_expires_at;
     bool is_logged_in;
     enum ScreensEnum current_screen;
-} app_state_v1_t;
+} legacy_state_v0_t;
 
-// Copies an old-layout blob field by field into the active state.
-static void migrate_state_v1(const app_state_v1_t *old)
+// Copies a legacy blob (either layout) into the split auth/device state and
+// persists it. No-op when no legacy blob exists.
+static void migrate_legacy_blob(void)
 {
-    memcpy(g_app_state.spotify_token, old->spotify_token, sizeof(old->spotify_token));
-    memcpy(g_app_state.refresh_token, old->refresh_token, sizeof(old->refresh_token));
-    memcpy(g_app_state.wifi_ssid, old->wifi_ssid, sizeof(old->wifi_ssid));
-    memcpy(g_app_state.wifi_password, old->wifi_password, sizeof(old->wifi_password));
-    g_app_state.token_expires_at = old->token_expires_at;
-    g_app_state.is_logged_in = old->is_logged_in;
-    g_app_state.current_screen = old->current_screen;
+    union {
+        legacy_state_v1_t v1;
+        legacy_state_v0_t v0;
+    } legacy;
+    size_t len = 0;
+    esp_err_t err = storage_get_blob(LEGACY_NAMESPACE, LEGACY_BLOB_KEY,
+                                     &legacy, sizeof(legacy), &len);
+    if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NOT_FOUND) {
+        return; // fresh install — nothing to migrate
+    }
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Could not read legacy state: %s", esp_err_to_name(err));
+        return;
+    }
+
+    auth_state_t *auth = auth_state_get();
+    device_state_t *device = device_state_get();
+
+    const uint8_t *token = NULL, *refresh = NULL, *ssid = NULL, *password = NULL;
+    uint32_t expires_at = 0;
+    bool logged_in = false;
+    enum ScreensEnum screen = SCREEN_ID_SETUP;
+
+    if (len == sizeof(legacy_state_v1_t)) {
+        token = legacy.v1.spotify_token;
+        refresh = legacy.v1.refresh_token;
+        expires_at = legacy.v1.token_expires_at;
+        logged_in = legacy.v1.is_logged_in;
+        ssid = legacy.v1.wifi_ssid;
+        password = legacy.v1.wifi_password;
+        screen = legacy.v1.current_screen;
+    } else if (len == sizeof(legacy_state_v0_t)) {
+        token = legacy.v0.spotify_token;
+        refresh = legacy.v0.refresh_token;
+        expires_at = legacy.v0.token_expires_at;
+        logged_in = legacy.v0.is_logged_in;
+        ssid = legacy.v0.wifi_ssid;
+        password = legacy.v0.wifi_password;
+        screen = legacy.v0.current_screen;
+    } else {
+        ESP_LOGW(TAG, "Legacy state has unexpected size %u — discarding", (unsigned)len);
+        storage_erase_namespace(LEGACY_NAMESPACE);
+        return;
+    }
+
+    // token/refresh may be 256-byte v0 buffers; only copy what each source holds
+    size_t token_src_len = (len == sizeof(legacy_state_v0_t)) ? 256 : 512;
+    memcpy(auth->spotify_token, token, token_src_len);
+    memcpy(auth->refresh_token, refresh, token_src_len);
+    auth->token_expires_at = expires_at;
+    auth->is_logged_in = logged_in;
     // keep NUL-termination within the (larger) new buffers
-    g_app_state.spotify_token[sizeof(g_app_state.spotify_token) - 1] = '\0';
-    g_app_state.refresh_token[sizeof(g_app_state.refresh_token) - 1] = '\0';
+    auth->spotify_token[sizeof(auth->spotify_token) - 1] = '\0';
+    auth->refresh_token[sizeof(auth->refresh_token) - 1] = '\0';
+
+    memcpy(device->wifi_ssid, ssid, sizeof(device->wifi_ssid));
+    memcpy(device->wifi_password, password, sizeof(device->wifi_password));
+    device->current_screen = screen;
+
+    auth_state_save();
+    device_state_save();
+    storage_erase_namespace(LEGACY_NAMESPACE);
+    ESP_LOGI(TAG, "Migrated legacy app_state blob (logged_in=%d)", logged_in);
 }
 
-void init_default_state(void)
+esp_err_t state_init(void)
 {
-    memset(&g_app_state, 0, sizeof(app_state_t));
-    g_app_state.current_screen = SCREEN_ID_SETUP;
-    g_app_state.is_logged_in = false;
-    g_app_state.token_expires_at = 0;
-    strncpy((char *)g_app_state.wifi_ssid, CONFIG_ESP_WIFI_SSID, sizeof(g_app_state.wifi_ssid) - 1);
-    g_app_state.wifi_ssid[sizeof(g_app_state.wifi_ssid) - 1] = '\0';
-    strncpy((char *)g_app_state.wifi_password, CONFIG_ESP_WIFI_PASSWORD, sizeof(g_app_state.wifi_password) - 1);
-    g_app_state.wifi_password[sizeof(g_app_state.wifi_password) - 1] = '\0';
+    auth_state_reset();
+    device_state_reset();
 
-    sprintf((char *)g_app_state.spotify_token, "%s", "[TOKEN_NOT_INITIALIZED]");
-    sprintf((char *)g_app_state.refresh_token, "%s", "[REFRESH_NOT_INITIALIZED]");
-}
+    bool auth_present = (auth_state_load() == ESP_OK);
+    bool device_present = (device_state_load() == ESP_OK);
 
-esp_err_t load_app_state(void)
-{
-    // populate RAM with known defaults
-    init_default_state();
-
-    // Read from NVS flash into a temporary struct. The blob may have been
-    // written by an older firmware with a different (smaller) layout, so
-    // decide based on the actual blob size.
-    app_state_t loaded_state;
-    size_t loaded_len = 0;
-    esp_err_t err = storage_get_blob(STATE_NAMESPACE, STATE_BLOB_KEY,
-                                     &loaded_state, sizeof(app_state_t), &loaded_len);
-
-    if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "No existing state found in flash — using defaults");
-        return ESP_OK;
+    // Upgrade path: no split state yet, but a legacy combined blob may exist.
+    if (!auth_present && !device_present) {
+        migrate_legacy_blob();
     }
-
-    if (err == ESP_OK && loaded_len == sizeof(app_state_t))
-    {
-        // Valid state found: copy to active state
-        memcpy(&g_app_state, &loaded_state, sizeof(app_state_t));
-        ESP_LOGI(TAG, "State loaded successfully from flash (logged_in=%d, screen=%d)",
-                 g_app_state.is_logged_in, g_app_state.current_screen);
-        return ESP_OK;
-    }
-
-    if (err == ESP_OK && loaded_len == sizeof(app_state_v1_t))
-    {
-        // Old-layout blob: migrate so the login/refresh token survives
-        migrate_state_v1((const app_state_v1_t *)&loaded_state);
-        ESP_LOGI(TAG, "Migrated state from v1 blob layout (logged_in=%d)",
-                 g_app_state.is_logged_in);
-        save_app_state(); // persist in the new layout
-        return ESP_OK;
-    }
-
-    ESP_LOGW(TAG, "Flash state corrupt or version mismatch (0x%x) — using defaults", err);
-    return err;
-}
-
-esp_err_t save_app_state(void)
-{
-    esp_err_t err = storage_set_blob(STATE_NAMESPACE, STATE_BLOB_KEY,
-                                     &g_app_state, sizeof(app_state_t));
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "State saved to flash");
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Failed to save state to flash: %s", esp_err_to_name(err));
-    }
-    return err;
-}
-
-esp_err_t clear_app_state(void)
-{
-    init_default_state();
-    return storage_erase_namespace(STATE_NAMESPACE);
-}
-
-app_state_t *get_app_state(void)
-{
-    return &g_app_state;
+    return ESP_OK;
 }

@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-void connect_to_spotify_clicked_cb(lv_event_t * e);
 void pp_anim_stop_timelines_for_deleted_tree(lv_obj_t * root);
 
 #ifdef __cplusplus
