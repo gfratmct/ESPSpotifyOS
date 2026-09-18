@@ -26,6 +26,16 @@
 static const char *TAG = "main";
 #define APP_WEBSERVER_PORT CONFIG_PLAYER_WEBSERVER_PORT
 
+// Temporary TLS diagnostic: probe Spotify HTTPS once the whole app is up
+// (webserver + LVGL running), matching the heap state of the real login.
+static void tls_probe_task(void *arg)
+{
+    (void)arg;
+    vTaskDelay(pdMS_TO_TICKS(15000));
+    spotify_tls_selftest();
+    vTaskDelete(NULL);
+}
+
 void app_main(void)
 {
     ESP_ERROR_CHECK(storage_init());
@@ -105,6 +115,9 @@ void app_main(void)
 
     /* Start rendering only after the whole UI tree exists. */
     ESP_ERROR_CHECK(lcd_start_lvgl());
+
+    // Temporary TLS diagnostic probe (runs 15 s after boot).
+    xTaskCreate(tls_probe_task, "tls_probe", 16384, NULL, 5, NULL);
 
     // populate the library; the request is serviced by the LVGL task, which by
     // now is running

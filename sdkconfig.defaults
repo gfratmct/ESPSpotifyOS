@@ -40,3 +40,13 @@ CONFIG_BT_GOEPC_ENABLED=n
 # esp_audio_codec: enable only the MP3 decoder
 CONFIG_AUDIO_DECODER_MP3_SUPPORT=y
 CONFIG_XPT2046_Z_THRESHOLD=200
+
+# TLS client buffers: 6KB in / 4KB out is enough for Spotify endpoints
+# (largest handshake record ~4KB) and avoids 16KB-contiguous alloc failures
+# on this memory-tight board (mbedtls_ssl_setup -0x008D).
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=6144
+
+# 2.4GHz WiFi hop drops large segments on this network (TLS handshakes to
+# accounts.spotify.com stall; 1500B passes fine on 5GHz). 536-byte MSS keeps
+# every segment well under the loss threshold.
+CONFIG_LWIP_TCP_MSS=536

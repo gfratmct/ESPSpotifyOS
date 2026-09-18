@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <mbedtls/base64.h>
 #include <cJSON.h>
@@ -31,6 +32,18 @@
 static http_response_t *resp_alloc(void)
 {
     return calloc(1, sizeof(http_response_t));
+}
+
+// Heap snapshot around the TLS-heavy token requests: ssl_setup needs a
+// contiguous block larger than MBEDTLS_SSL_IN_CONTENT_LEN, so the largest
+// free block matters more than the total. calloc() can only use 8-bit
+// capable (DRAM) memory, which is what the "8BIT" figure tracks.
+static void log_heap_snapshot(void)
+{
+    ESP_LOGI(TAG, "heap: %u free, largest block internal %u / 8bit-capable %u",
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
 }
 
 static esp_err_t build_basic_auth_header(char *out, size_t out_size)
@@ -154,10 +167,14 @@ esp_err_t spotify_exchange_code_for_token(const char *code)
     http_response_t *resp = resp_alloc();
     if (!resp) return ESP_ERR_NO_MEM;
 
-    err = http_post(SPOTIFY_TOKEN_URL, body, "application/x-www-form-urlencoded", headers, 1, resp);
+    log_heap_snapshot();
+    // generous timeout: first-attempt DNS resolution can eat the default 5 s
+    err = http_post_with_timeout(SPOTIFY_TOKEN_URL, body, "application/x-www-form-urlencoded",
+                                 headers, 1, 15000, resp);
     if (err != ESP_OK || resp->status_code != 200) {
         ESP_LOGE(TAG, "Token exchange failed (err=%s, status=%d): %.200s",
                  esp_err_to_name(err), resp->status_code, resp->data);
+        log_heap_snapshot();
         free(resp);
         return (err == ESP_OK) ? ESP_FAIL : err;
     }
@@ -168,6 +185,23 @@ esp_err_t spotify_exchange_code_for_token(const char *code)
         ESP_LOGI(TAG, "Spotify authorization complete");
     }
     return err;
+}
+
+void spotify_tls_selftest(void)
+{
+    http_response_t *resp = resp_alloc();
+    if (!resp) {
+        ESP_LOGE(TAG, "selftest: no memory for response");
+        return;
+    }
+
+    log_heap_snapshot();
+    esp_err_t err = http_get("https://api.spotify.com/v1", NULL, 0, resp);
+    ESP_LOGI(TAG, "TLS selftest: err=%s status=%d (%s)",
+             esp_err_to_name(err), resp->status_code,
+             resp->status_code != 0 ? "TLS OK" : "TLS FAILED");
+    log_heap_snapshot();
+    free(resp);
 }
 
 esp_err_t spotify_refresh_access_token(void)
@@ -197,9 +231,12 @@ esp_err_t spotify_refresh_access_token(void)
     http_response_t *resp = resp_alloc();
     if (!resp) return ESP_ERR_NO_MEM;
 
-    err = http_post(SPOTIFY_TOKEN_URL, body, "application/x-www-form-urlencoded", headers, 1, resp);
+    log_heap_snapshot();
+    err = http_post_with_timeout(SPOTIFY_TOKEN_URL, body, "application/x-www-form-urlencoded",
+                                 headers, 1, 15000, resp);
     if (err != ESP_OK && resp->status_code == 0) {
         ESP_LOGE(TAG, "Token refresh transport error (%s)", esp_err_to_name(err));
+        log_heap_snapshot();
         free(resp);
         spotify_logout();
         return err;

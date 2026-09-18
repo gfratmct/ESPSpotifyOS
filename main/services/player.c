@@ -362,6 +362,9 @@ static play_result_t play_current(void)
 static void set_state(player_state_t state)
 {
     s_state = state;
+    // Unmute the speaker amplifier while playing, mute when idle/stopped so
+    // the onboard DAC idle level does not hiss through the speaker.
+    audio_output_amp_enable(state == PLAYER_PLAYING);
 }
 
 static void player_task(void *arg)

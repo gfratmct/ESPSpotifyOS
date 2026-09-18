@@ -52,6 +52,8 @@ set(DRIVER_DEPS
   esp_driver_ledc
   esp_driver_i2s
   esp_driver_sdspi
+  esp_driver_gpio
+  esp_driver_dac
   sdmmc
   fatfs
 )

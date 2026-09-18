@@ -26,23 +26,25 @@ The project is a work in progress. Here's where it stands today.
 - **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh.
 - **Library browsing**: tabbed library screen - **Spotify** (liked tracks, 24 per page, infinite scroll), **Server** (tracks on the media server), and **SD** (local cache). Tap a Server/SD item to play it; long-press an item to act on it (import / download).
 - **Player**: player screen with now-playing info, progress bar, prev / play-pause / next, and volume. Plays Server tracks via HTTP streaming (resuming with HTTP Range if the stream drops) and SD tracks from the cache, decoded with `esp_audio_codec`. Listening to a Server track also saves it to the SD cache. Playback continues in the background when you leave the screen (the library's top-right button reopens it).
+- **Audio output**: onboard speaker support for the LCDWIKI **E32R28T/E32N28T** board - mono 8-bit output on the ESP32's internal DAC (**GPIO26**) into the onboard amplifier, with the amplifier enable pin (**IO4**, active-low) unmuted during playback and muted when idle. Alternatively, an external I2S DAC (e.g. PCM5102) can be selected. The internal DAC is lo-fi (8-bit mono); use the I2S backend for better quality.
 - **Import to the media server**: long-press a liked track - the server searches for matching audio (yt-dlp), downloads it, and stores it. Deduplication is automatic (re-imports return the existing track).
 - **SD cache / offline**: imported and downloaded tracks are streamed to the SD card (FatFS over the shared SPI bus) so they are available offline. The SD tab lists cached files. *(SD hardware path is implemented but not yet validated on-device.)*
 - **Media server (backend)**: track search/download via `yt-dlp`, SQLite metadata store, MP3 storage, paginated listing, query/URL import, and a streaming endpoint with HTTP Range support. See [`server/`](server/README.md).
 
 ### What's next
 
-- **Audio output wiring**: set `CONFIG_PLAYER_AUX_*_GPIO` for an external I2S DAC (e.g. PCM5102). Until then the player runs in **silent mode** - the UI, progress, decoding and SD caching all work, but no audio is produced.
 - **Playback polish**: seeking, album art, and a queue that spans pages (next/prev currently stay within the loaded page).
+- **Audio quality**: the internal DAC path is 8-bit mono; an external I2S DAC (PCM5102 on the `PLAYER_AUX_*` pins) gives 16-bit stereo.
 
 ---
 
 ## Hardware Requirements
 
-- **MCU**: ESP32 / ESP32-S3 (or compatible ESP-IDF supported target)
+- **Board**: LCDWIKI E32R28T / E32N28T 2.8" ESP32-32E display module (ESP32-WROOM-32E)
 - **Display**: ILI9341 SPI TFT LCD (with LED backlight control via LEDC)
-- **Touch**: XPT2046 SPI Touch Controller
-- **Optional**: SD Card Reader, External DAC/I2S Codec
+- **Touch**: XPT2046 SPI Touch Controller (E32R28T)
+- **Speaker**: any small speaker wired to the board's **SPEAKER** 1.25mm 2-pin connector (driven by the onboard amplifier from the ESP32 internal DAC on GPIO26; amplifier enabled via IO4)
+- **Optional**: SD Card Reader (onboard slot), External DAC/I2S Codec (PCM5102) for better-than-8-bit audio
 
 ---
 
@@ -122,7 +124,8 @@ Configure Wi-Fi and Spotify credentials:
 - `CONFIG_PLAYER_SPOTIFY_CLIENT_ID` / `CONFIG_PLAYER_SPOTIFY_CLIENT_SECRET`: your Spotify app credentials (from the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
 - `CONFIG_PLAYER_MEDIA_SERVICE_URL` / `CONFIG_PLAYER_MEDIA_API_KEY`: the media server's address (e.g. `http://192.168.1.50:8081`) and the `SECRET` value from its `.env` file. Needed for the long-press import feature.
 - `CONFIG_PLAYER_AP_SSID` / `CONFIG_PLAYER_AP_PASSWORD`: the provisioning access point (see below). The AP password must be at least 8 characters, or empty for an open AP.
-- `CONFIG_PLAYER_AUX_BCK_GPIO` / `_LRCK_GPIO` / `_DIN_GPIO` / `_SCK_GPIO`: I2S output pins for an external DAC. Leave at `-1` for silent mode (player UI works, no audio).
+- `PLAYER_AUDIO_OUTPUT` (Player Configuration): the audio backend - **Onboard ESP32 DAC** (default; E32R28T speaker on GPIO26, lo-fi 8-bit mono), **External I2S DAC** (set the `PLAYER_AUX_*` pins), or **Silent**. `CONFIG_PLAYER_AUDIO_EN_GPIO` (default `4`, active-low) controls the amplifier enable pin; set it to `-1` if your amplifier has no enable pin.
+- `CONFIG_PLAYER_TEST_TONE`: play a short 440 Hz tone at boot to verify the speaker path without streaming. Turn it off once audio works.
 
 ### 3. Build and Flash
 
