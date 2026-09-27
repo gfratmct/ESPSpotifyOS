@@ -227,7 +227,7 @@ static esp_err_t dac_output_init(void)
     s_ready = true;
     ESP_LOGI(TAG, "onboard DAC output ready (%d Hz mono 8-bit on GPIO26, amp enable GPIO %d)",
              AUDIO_SAMPLE_RATE, CONFIG_PLAYER_AUDIO_EN_GPIO);
-    ESP_LOGI(TAG, "heap after audio init: %u free, %u largest internal block",
+    ESP_LOGI(TAG, "heap after audio open: %u free, %u largest internal block",
              (unsigned)esp_get_free_heap_size(),
              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
     return ESP_OK;
@@ -270,9 +270,19 @@ static esp_err_t dac_output_write(const int16_t *samples, size_t sample_count)
 
 // ---- public API ---------------------------------------------------------------
 
+// Only the amplifier enable pin is configured at boot (kept muted): this is
+// cheap and prevents a floating enable pin from leaving the amp half-on. The
+// actual output backend (DAC/I2S DMA buffers) is opened lazily on first
+// playback via audio_output_open() to keep the boot-time heap free.
 esp_err_t audio_output_init(void)
 {
     amp_init();
+    return ESP_OK;
+}
+
+esp_err_t audio_output_open(void)
+{
+    if (s_ready) return ESP_OK;
 
     esp_err_t err = ESP_ERR_INVALID_STATE;
 
@@ -289,12 +299,38 @@ esp_err_t audio_output_init(void)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "no audio output configured - playing silently");
     }
-
-#if defined(CONFIG_PLAYER_TEST_TONE)
-    audio_output_test_tone();
-#endif
-
     return err;
+}
+
+void audio_output_close(void)
+{
+    switch (s_backend) {
+#if defined(CONFIG_PLAYER_AUDIO_OUT_I2S)
+    case OUTPUT_I2S:
+        if (s_tx) {
+            i2s_channel_disable(s_tx);
+            i2s_del_channel(s_tx);
+            s_tx = NULL;
+        }
+        break;
+#endif
+#if defined(CONFIG_PLAYER_AUDIO_OUT_DAC)
+    case OUTPUT_DAC:
+        if (s_dac) {
+            dac_continuous_disable(s_dac);
+            dac_continuous_del_channels(s_dac);
+            s_dac = NULL;
+        }
+        free(s_mono);
+        s_mono = NULL;
+        s_mono_cap = 0;
+        break;
+#endif
+    default:
+        break;
+    }
+    s_backend = OUTPUT_NONE;
+    s_ready = false;
 }
 
 bool audio_output_ready(void)
@@ -332,7 +368,7 @@ esp_err_t audio_output_write(int16_t *samples, size_t sample_count)
 
 void audio_output_test_tone(void)
 {
-    if (!s_ready) return;
+    if (audio_output_open() != ESP_OK) return;
 
     size_t total_frames = (size_t)AUDIO_SAMPLE_RATE * TONE_DURATION_MS / 1000;
     int16_t buf[TONE_CHUNK_FRAMES * AUDIO_CHANNELS];
@@ -357,6 +393,7 @@ void audio_output_test_tone(void)
     // Let the DMA drain before muting so the tone tail is not clipped.
     vTaskDelay(pdMS_TO_TICKS(400));
     audio_output_amp_enable(false);
+    audio_output_close();
 }
 
 #else

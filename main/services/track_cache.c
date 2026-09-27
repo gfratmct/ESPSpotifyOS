@@ -46,6 +46,8 @@ static void sanitize_name(char *name)
 
 bool track_cache_available(void)
 {
+    // Passive: the card is mounted on explicit SD use (SD tab / download), not
+    // implicitly during streaming, so playback startup stays allocation-free.
     return sd_storage_ready();
 }
 

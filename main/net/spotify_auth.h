@@ -34,13 +34,6 @@ esp_err_t spotify_refresh_access_token(void);
  */
 void spotify_logout(void);
 
-/**
- * @brief Temporary diagnostic: probe https://api.spotify.com and log whether
- *        the TLS handshake completes (any HTTP status = TLS OK).
- *        Used to debug the cert-verification failure without the OAuth flow.
- */
-void spotify_tls_selftest(void);
-
 #ifdef __cplusplus
 }
 #endif

@@ -26,16 +26,6 @@
 static const char *TAG = "main";
 #define APP_WEBSERVER_PORT CONFIG_PLAYER_WEBSERVER_PORT
 
-// Temporary TLS diagnostic: probe Spotify HTTPS once the whole app is up
-// (webserver + LVGL running), matching the heap state of the real login.
-static void tls_probe_task(void *arg)
-{
-    (void)arg;
-    vTaskDelay(pdMS_TO_TICKS(15000));
-    spotify_tls_selftest();
-    vTaskDelete(NULL);
-}
-
 void app_main(void)
 {
     ESP_ERROR_CHECK(storage_init());
@@ -51,17 +41,14 @@ void app_main(void)
     lcd_backlight_init();
     lcd_backlight_set(50);
 
-    // SD shares the LCD SPI bus, so mount it after lcd_init(). A missing card
-    // is not fatal: the offline tab simply reports storage as unavailable.
-    sd_storage_mount();
-
     ESP_LOGI(TAG, "initializing ui");
     ui_init();
     library_screen_init();
     player_screen_init();
 
-    // Audio output + playback engine (I2S output is optional: it stays silent
-    // when the PLAYER_AUX_* pins are not configured).
+    // Audio output + playback engine. Both are lazy: boot only mutes the amp
+    // pin, and the DAC/I2S backend + player task start on first playback. This
+    // keeps the boot heap free for Wi-Fi/TLS (SD is mounted lazily too).
     audio_output_init();
     player_init();
 
@@ -115,9 +102,6 @@ void app_main(void)
 
     /* Start rendering only after the whole UI tree exists. */
     ESP_ERROR_CHECK(lcd_start_lvgl());
-
-    // Temporary TLS diagnostic probe (runs 15 s after boot).
-    xTaskCreate(tls_probe_task, "tls_probe", 16384, NULL, 5, NULL);
 
     // populate the library; the request is serviced by the LVGL task, which by
     // now is running

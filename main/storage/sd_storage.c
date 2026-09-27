@@ -21,10 +21,17 @@
 
 static sdmmc_card_t *s_card;
 static bool s_mounted;
+static bool s_mount_attempted;
 
 esp_err_t sd_storage_mount(void)
 {
     if (s_mounted) return ESP_OK;
+    if (s_mount_attempted) {
+        // A previous attempt failed (usually no card inserted). Don't retry:
+        // the half-initialized sdspi device would report GPIO conflicts.
+        return ESP_ERR_INVALID_STATE;
+    }
+    s_mount_attempted = true;
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SD_SPI_HOST;
@@ -49,6 +56,11 @@ esp_err_t sd_storage_mount(void)
     s_mounted = true;
     ESP_LOGI(TAG, "SD card mounted at %s", CONFIG_PLAYER_SD_MOUNT_POINT);
     return ESP_OK;
+}
+
+esp_err_t sd_storage_ensure_mounted(void)
+{
+    return sd_storage_mount();
 }
 
 bool sd_storage_ready(void)

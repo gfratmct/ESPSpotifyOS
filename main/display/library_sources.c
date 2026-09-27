@@ -80,7 +80,10 @@ static esp_err_t server_fetch(int offset, int limit, library_item_t *out, size_t
 
 static transfer_request_result_t server_start_transfer(const library_item_t *item)
 {
-    if (!media_client_configured() || !sd_storage_ready()) return TRANSFER_UNAVAILABLE;
+    // An explicit download brings the card up on demand.
+    if (!media_client_configured() || sd_storage_ensure_mounted() != ESP_OK) {
+        return TRANSFER_UNAVAILABLE;
+    }
 
     char display_name[288];
     snprintf(display_name, sizeof(display_name), "%s - %s", item->subtitle, item->title);
@@ -119,7 +122,8 @@ static esp_err_t sd_fetch(int offset, int limit, library_item_t *out, size_t max
     if (out_count) *out_count = 0;
     if (out_total) *out_total = 0;
 
-    if (!sd_storage_ready()) {
+    // Opening the SD tab is the lazy trigger to mount the card.
+    if (sd_storage_ensure_mounted() != ESP_OK) {
         return ESP_OK; // list shows the source's empty message
     }
 

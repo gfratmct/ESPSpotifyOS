@@ -11,15 +11,28 @@ extern "C" {
 #endif
 
 /**
- * @brief Initialize the configured audio output backend.
+ * @brief Configure the amplifier enable pin (kept muted). Cheap and safe to
+ *        call at boot.
  *
- * The backend is selected via the PLAYER_AUDIO_OUTPUT Kconfig choice:
- * silent, external I2S DAC (PLAYER_AUX_* pins), or the onboard ESP32 DAC
- * (GPIO26, E32R28T speaker path). When no output can be configured this
- * returns ESP_ERR_INVALID_STATE but is non-fatal: playback still runs,
- * paced to real time, with no audio.
+ * The actual output backend (ESP32 DAC or external I2S DAC, including its DMA
+ * buffers) is opened lazily by audio_output_open() on first playback, so the
+ * boot-time heap stays free for the Wi-Fi/TLS stack. Playback works silently
+ * (paced to real time) while the backend is not open.
  */
 esp_err_t audio_output_init(void);
+
+/**
+ * @brief Open the configured output backend (idempotent).
+ *
+ * Allocates the DAC/I2S DMA buffers. Call before the first audio_output_write()
+ * for real sound; safe to call repeatedly.
+ */
+esp_err_t audio_output_open(void);
+
+/**
+ * @brief Release the output backend and its DMA buffers (idempotent).
+ */
+void audio_output_close(void);
 
 // Whether a real audio output is actually configured/ready.
 bool audio_output_ready(void);

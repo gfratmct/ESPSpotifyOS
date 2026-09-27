@@ -5,11 +5,13 @@
 #include <string.h>
 #include <strings.h>
 
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
+#include "esp_audio_dec_default.h"
 #include "esp_audio_simple_dec.h"
 #include "esp_audio_simple_dec_default.h"
 
@@ -81,6 +83,10 @@ static bool decode_start(decode_ctx_t *ctx, const char *encoding)
     ctx->pcm = malloc(DECODE_PCM_INITIAL);
     if (!ctx->pcm) return false;
     ctx->pcm_cap = DECODE_PCM_INITIAL;
+
+    ESP_LOGI(TAG, "opening decoder '%s' (heap %u free, largest %u)",
+             encoding ? encoding : "?", (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
 
     esp_audio_simple_dec_cfg_t cfg = {
         .dec_type = dec_type_for(encoding),
@@ -154,6 +160,14 @@ static bool output_pcm(decode_ctx_t *ctx, size_t bytes)
 // Feeds encoded bytes through the decoder, pushing decoded PCM to the output.
 static bool decode_feed(decode_ctx_t *ctx, const uint8_t *data, size_t len)
 {
+    static bool logged_once;
+    if (!logged_once) {
+        logged_once = true;
+        ESP_LOGI(TAG, "first decode: heap %u free, largest %u (MP3 decoder needs ~19KB)",
+                 (unsigned)esp_get_free_heap_size(),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    }
+
     esp_audio_simple_dec_raw_t raw = { .buffer = (uint8_t *)data, .len = len, .eos = false };
 
     while (raw.consumed < raw.len) {
@@ -413,24 +427,51 @@ static void player_task(void *arg)
 
 // ---- public API --------------------------------------------------------------
 
+// Creates the player task and opens the audio backend on first playback. These
+// are the memory-heavy parts (16 KB task stack + DAC/I2S DMA buffers), so they
+// are deferred until actually needed, keeping the boot-time heap free for the
+// Wi-Fi/TLS stack. Only called from the UI task via player_play_queue().
+static bool ensure_task(void)
+{
+    if (s_task) return true;
+
+    static bool decoders_registered;
+    if (!decoders_registered) {
+        // Codes (MP3/AAC/...) live in the low-level AUDIO_DEC registry; the
+        // "simple" registration below only adds the container formats
+        // (WAV/M4A/TS/OGG). Both are required.
+        esp_audio_dec_register_default();
+        esp_audio_simple_dec_register_default();
+        decoders_registered = true;
+    }
+
+    // Non-fatal: if no output is configured the player stays silent but paced.
+    audio_output_open();
+
+    if (xTaskCreate(player_task, "player", PLAYER_TASK_STACK, NULL, PLAYER_TASK_PRIO, &s_task) != pdPASS) {
+        ESP_LOGE(TAG, "failed to create player task");
+        return false;
+    }
+    ESP_LOGI(TAG, "player started on demand");
+    return true;
+}
+
 void player_init(void)
 {
     if (!s_lock) {
         s_lock = xSemaphoreCreateMutex();
     }
 
-    esp_audio_simple_dec_register_default();
-
     s_volume = device_state_get_volume();
     audio_output_set_volume(s_volume);
 
-    xTaskCreate(player_task, "player", PLAYER_TASK_STACK, NULL, PLAYER_TASK_PRIO, &s_task);
-    ESP_LOGI(TAG, "player ready (volume %u%%)", s_volume);
+    ESP_LOGI(TAG, "player ready (volume %u%%, task starts on first play)", s_volume);
 }
 
 esp_err_t player_play_queue(const player_track_t *tracks, size_t count, size_t start_index)
 {
     if (!tracks || count == 0 || start_index >= count) return ESP_ERR_INVALID_ARG;
+    if (!ensure_task()) return ESP_ERR_NO_MEM;
 
     player_track_t *copy = malloc(count * sizeof(*copy));
     if (!copy) return ESP_ERR_NO_MEM;
@@ -481,7 +522,7 @@ void player_next(void)
 
     s_paused = false;
     s_restart_request = true;
-    xTaskNotifyGive(s_task);
+    if (s_task) xTaskNotifyGive(s_task);
 }
 
 void player_prev(void)
@@ -496,14 +537,14 @@ void player_prev(void)
 
     s_paused = false;
     s_restart_request = true;
-    xTaskNotifyGive(s_task);
+    if (s_task) xTaskNotifyGive(s_task);
 }
 
 void player_stop(void)
 {
     s_stop_request = true;
     s_paused = false;
-    xTaskNotifyGive(s_task);
+    if (s_task) xTaskNotifyGive(s_task);
 }
 
 void player_set_volume(uint8_t percent)

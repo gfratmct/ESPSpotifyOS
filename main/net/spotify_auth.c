@@ -187,23 +187,6 @@ esp_err_t spotify_exchange_code_for_token(const char *code)
     return err;
 }
 
-void spotify_tls_selftest(void)
-{
-    http_response_t *resp = resp_alloc();
-    if (!resp) {
-        ESP_LOGE(TAG, "selftest: no memory for response");
-        return;
-    }
-
-    log_heap_snapshot();
-    esp_err_t err = http_get("https://api.spotify.com/v1", NULL, 0, resp);
-    ESP_LOGI(TAG, "TLS selftest: err=%s status=%d (%s)",
-             esp_err_to_name(err), resp->status_code,
-             resp->status_code != 0 ? "TLS OK" : "TLS FAILED");
-    log_heap_snapshot();
-    free(resp);
-}
-
 esp_err_t spotify_refresh_access_token(void)
 {
     auth_state_t *state = auth_state_get();
