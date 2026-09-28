@@ -1,2 +1,8 @@
+# Clangd config for ESP-IDF (GCC compile_commands + clang frontend).
+# -m* / -f* are GCC/Xtensa flags clangd does not understand; drop them and
+# let --query-driver supply the real toolchain include path.
 CompileFlags:
-    Remove: [-f*, -m*]
+  CompilationDatabase: build
+  Add:
+    - -Wno-unknown-warning-option
+  Remove: [-m*, -f*]

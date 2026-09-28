@@ -11,7 +11,6 @@
 
 #include "connectivity/wifi.h"
 #include "data/device_state.h"
-#include "display/library_screen.h"
 #include "net/spotify_auth.h"
 
 #define TAG "routes"
@@ -194,9 +193,6 @@ static esp_err_t handle_submit_post(httpd_req_t *req) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
-
-    // repopulate the library (runs inside the LVGL task via the ui_state loop)
-    library_screen_request_refresh();
 
     httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;

@@ -6,7 +6,7 @@ A small Go backend ("Media Service") that backs the ESP Spotify player: it impor
 
 ## Mission
 
-Part of the larger ESPSpotifyOS project. While the ESP32 provides the touchscreen UI, this service handles the heavy lifting:
+Part of the larger ESPSpotifyOS project. The ESP32 uses this service to handle the heavy lifting:
 
 1. **Search & download** - given a track (or a query), it finds matching audio via **yt-dlp** on YouTube Music and downloads it as an MP3.
 2. **Store** - track metadata lives in a SQLite database; the MP3 files are kept on disk.

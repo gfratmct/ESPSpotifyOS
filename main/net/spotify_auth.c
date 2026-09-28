@@ -127,7 +127,7 @@ void spotify_logout(void)
     memset(state->refresh_token, 0, sizeof(state->refresh_token));
     state->token_expires_at = 0;
     state->is_logged_in = false;
-    auth_state_save(); // the ui_state loop switches to the login screen
+    auth_state_save();
 }
 
 esp_err_t spotify_get_authorize_url(char *out, size_t out_size)

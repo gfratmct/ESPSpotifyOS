@@ -5,13 +5,7 @@ set(COMPONENT_SRCS
   "data/auth_state.c"
   "data/device_state.c"
   "data/state.c"
-  "display/lcd.c"
-  "display/library_list.c"
-  "display/library_screen.c"
-  "display/library_sources.c"
-  "display/player_screen.c"
-  "display/setup_screen.c"
-  "display/ui_state.c"
+  "display/display.c"
   "net/http_client.c"
   "net/media_client.c"
   "net/spotify_auth.c"
@@ -35,6 +29,8 @@ set(CORE_DEPS
   esp_timer
   nvs_flash
   cjson
+  esp_lcd
+  lvgl
 )
 
 set(CONNECTIVITY_DEPS
@@ -49,8 +45,8 @@ set(CONNECTIVITY_DEPS
 
 set(DRIVER_DEPS
   esp_driver_spi
-  esp_driver_ledc
   esp_driver_i2s
+  esp_driver_i2c
   esp_driver_sdspi
   esp_driver_gpio
   esp_driver_dac
@@ -58,10 +54,7 @@ set(DRIVER_DEPS
   fatfs
 )
 
-set(UI_AUDIO_DEPS
-  esp_lcd
-  lvgl
-  ui
+set(AUDIO_DEPS
   esp_audio_codec
 )
 
@@ -69,7 +62,7 @@ set(COMPONENT_PRIV_REQUIRES
   ${CORE_DEPS}
   ${CONNECTIVITY_DEPS}
   ${DRIVER_DEPS}
-  ${UI_AUDIO_DEPS}
+  ${AUDIO_DEPS}
 )
 
 idf_component_register(

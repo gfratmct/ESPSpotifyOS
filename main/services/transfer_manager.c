@@ -29,7 +29,7 @@ typedef struct {
     char display_name[192]; // file name for the cache
 } transfer_request_t;
 
-// Written by the worker task, consumed (after the state flag) by the LVGL task.
+// Written by the worker task and read through the transfer-state API.
 static volatile transfer_state_t s_state = TRANSFER_IDLE;
 static char s_error[96];
 static QueueHandle_t s_queue;

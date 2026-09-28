@@ -2,7 +2,7 @@
 
 > **Disclaimer**: This is an **unofficial, hobby project** built for **personal use only**. It is **not affiliated with, endorsed by, or connected to Spotify** or any other streaming service. Do not use it for commercial purposes.
 
-An ESP-IDF application for ESP32 that pairs with a small media server to turn your own music library into a physical, touchscreen player.
+An ESP-IDF application for ESP32 that pairs with a small media server to play your own music library.
 
 ## Mission
 
@@ -12,20 +12,46 @@ A personal Spotify companion player. The idea is simple:
 2. **Fetch** - the server finds matching audio for each track via **yt-dlp** and stores it locally.
 3. **Stream** - the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through a speaker.
 
-In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32 is the physical player you interact with on a touchscreen.
+In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32 handles playback.
 
 ## Current State
 
 The project is a work in progress. Here's where it stands today.
 
+# Some notes
+
+I2C Display Pins:
+- SDA: IO6
+- SCL: IO8
+
+SPI SD Card:
+- MOSI: IO11
+- MISO: IO12
+- SCK:  IO14
+- CS:   IO21
+- CD:   IO47
+
+Switches:
+- SWC: IO4
+- SWB: IO15
+- SWT: IO16
+- SWL: IO18
+- SWR: IO17
+
+AUX
+- SCK: IO42
+- BCK: IO41
+- DIN: IO40
+- LRCK: IO39
+- DET: IO38
+
 ### What works
 
-- **Boot & display**: ILI9341 SPI LCD with XPT2046 touch, LVGL UI, LED backlight control.
+- **Display**: minimal initialization placeholder; SSD1306 hardware support and UI are not implemented yet.
 - **Wi-Fi**: station-mode auto-connect with reconnect handling. Credentials are seeded from Kconfig on first boot and persisted in NVS.
 - **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. See [Wi-Fi Provisioning](#wi-fi-provisioning).
 - **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh.
-- **Library browsing**: tabbed library screen - **Spotify** (liked tracks, 24 per page, infinite scroll), **Server** (tracks on the media server), and **SD** (local cache). Tap a Server/SD item to play it; long-press an item to act on it (import / download).
-- **Player**: player screen with now-playing info, progress bar, prev / play-pause / next, and volume. Plays Server tracks via HTTP streaming (resuming with HTTP Range if the stream drops) and SD tracks from the cache, decoded with `esp_audio_codec`. Listening to a Server track also saves it to the SD cache. Playback continues in the background when you leave the screen (the library's top-right button reopens it).
+- **Playback engine**: plays Server tracks via HTTP streaming (resuming with HTTP Range if the stream drops) and SD tracks from the cache, decoded with `esp_audio_codec`. Playback controls and library browsing are not currently available in the firmware UI.
 - **Audio output**: onboard speaker support for the LCDWIKI **E32R28T/E32N28T** board - mono 8-bit output on the ESP32's internal DAC (**GPIO26**) into the onboard amplifier, with the amplifier enable pin (**IO4**, active-low) unmuted during playback and muted when idle. Alternatively, an external I2S DAC (e.g. PCM5102) can be selected. The internal DAC is lo-fi (8-bit mono); use the I2S backend for better quality.
 - **Import to the media server**: long-press a liked track - the server searches for matching audio (yt-dlp), downloads it, and stores it. Deduplication is automatic (re-imports return the existing track).
 - **SD cache / offline**: imported and downloaded tracks are streamed to the SD card (FatFS over the shared SPI bus) so they are available offline. The SD tab lists cached files. *(SD hardware path is implemented but not yet validated on-device.)*
@@ -40,9 +66,8 @@ The project is a work in progress. Here's where it stands today.
 
 ## Hardware Requirements
 
-- **Board**: LCDWIKI E32R28T / E32N28T 2.8" ESP32-32E display module (ESP32-WROOM-32E)
-- **Display**: ILI9341 SPI TFT LCD (with LED backlight control via LEDC)
-- **Touch**: XPT2046 SPI Touch Controller (E32R28T)
+- **Board**: ESP32 development board
+- **Display**: SSD1306 OLED (planned; no pins or bus are configured yet)
 - **Speaker**: any small speaker wired to the board's **SPEAKER** 1.25mm 2-pin connector (driven by the onboard amplifier from the ESP32 internal DAC on GPIO26; amplifier enabled via IO4)
 - **Optional**: SD Card Reader (onboard slot), External DAC/I2S Codec (PCM5102) for better-than-8-bit audio
 
@@ -55,8 +80,6 @@ ESPSpotifyOS/
 ├── CMakeLists.txt
 ├── partitions.csv
 ├── sdkconfig.defaults
-├── components/
-│   └── ui/                        # LVGL UI components and screens (PicoPixel-generated shells)
 ├── main/
 │   ├── core/
 │   │   └── time_sync.c/.h           # SNTP time sync (needed for token refresh)
@@ -67,14 +90,7 @@ ESPSpotifyOS/
 │   │   ├── device_state.c/.h       # wifi creds + screen/tab (NVS "device")
 │   │   └── state.c/.h              # state_init() + legacy blob migration
 │   ├── display/
-│   │   ├── lcd.c/.h                # LCD, backlight, touch, LVGL task
-│   │   ├── library_list.c/.h       # generic paged list widget (selection/long-press)
-│   │   ├── library_screen.c/.h     # library screen shell + tab bar
-│   │   ├── library_source.h        # data-source interface (Spotify/Server/SD)
-│   │   ├── library_sources.c       # source adapters
-│   │   ├── player_screen.c/.h      # player screen + tap-to-play
-│   │   ├── setup_screen.c/.h       # setup screen status helper
-│   │   └── ui_state.c/.h           # UI state sync loop
+│   │   └── display.c/.h            # minimal display initialization placeholder
 │   ├── net/
 │   │   ├── http_client.c/.h        # HTTP client wrapper (GET/POST/stream)
 │   │   ├── media_client.c/.h       # companion media server client

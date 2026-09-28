@@ -3,11 +3,19 @@
 #include <stdint.h>
 
 #include "esp_err.h"
-#include "screens.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+enum ScreensEnum {
+    SCREEN_ID_HOME,
+    SCREEN_ID_SPOTIFY,
+    SCREEN_ID_PLAYER,
+    SCREEN_ID_SETUP,
+    SCREEN_ID_LIBRARY,
+    SCREEN_ID_NONE
+};
 
 // Device-level state, persisted in the NVS "device" namespace.
 typedef struct {

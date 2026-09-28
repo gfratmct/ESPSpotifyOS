@@ -29,7 +29,7 @@ esp_err_t spotify_refresh_access_token(void);
 
 /**
  * @brief Drop the stored Spotify session: tokens are cleared and is_logged_in
- *        becomes false (the ui_state loop then switches to the login screen).
+ *        becomes false.
  *        Called automatically when Spotify rejects the refresh token.
  */
 void spotify_logout(void);

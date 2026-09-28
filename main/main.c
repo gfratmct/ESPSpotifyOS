@@ -4,24 +4,20 @@
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "ui.h"
 
 #include "connectivity/wifi.h"
 #include "core/time_sync.h"
 #include "data/auth_state.h"
 #include "data/device_state.h"
 #include "data/state.h"
-#include "display/lcd.h"
-#include "display/library_screen.h"
-#include "display/player_screen.h"
-#include "display/setup_screen.h"
-#include "display/ui_state.h"
+#include "display/display.h"
 #include "net/spotify_auth.h"
 #include "server/webserver.h"
 #include "services/audio_output.h"
 #include "services/player.h"
 #include "storage/sd_storage.h"
 #include "utils/storage.h"
+#include "display/display.h"
 
 static const char *TAG = "main";
 #define APP_WEBSERVER_PORT CONFIG_PLAYER_WEBSERVER_PORT
@@ -37,14 +33,7 @@ void app_main(void)
              auth->is_logged_in, device->current_screen, device->wifi_ssid);
 
     ESP_LOGI(TAG, "initializing display");
-    ESP_ERROR_CHECK(lcd_init());
-    lcd_backlight_init();
-    lcd_backlight_set(50);
-
-    ESP_LOGI(TAG, "initializing ui");
-    ui_init();
-    library_screen_init();
-    player_screen_init();
+    ESP_ERROR_CHECK(display_init());
 
     // Audio output + playback engine. Both are lazy: boot only mutes the amp
     // pin, and the DAC/I2S backend + player task start on first playback. This
@@ -75,39 +64,20 @@ void app_main(void)
     webserver_t *webserver = webserver_create(APP_WEBSERVER_PORT);
     if (webserver_start(webserver) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start webserver");
-        setup_screen_show_status("Webserver failed", "Reboot to retry", NULL);
     } else if (wifi_ok) {
         char url[48];
         snprintf(url, sizeof(url), "%s:%d/submit", wifi_get_ip(), APP_WEBSERVER_PORT);
-        setup_screen_show_status("Login at:", url, NULL);
+        ESP_LOGI(TAG, "Login at: %s", url);
     } else {
         char url[48];
         snprintf(url, sizeof(url), "%s:%d/settings", WIFI_AP_IP, APP_WEBSERVER_PORT);
-        setup_screen_show_status("WiFi failed. Join AP:", CONFIG_PLAYER_AP_SSID, url);
+        ESP_LOGI(TAG, "WiFi failed. Join AP %s, then open %s",
+                 CONFIG_PLAYER_AP_SSID, url);
     }
 
-    // Logged in and online? start on the library; otherwise show setup.
-    if (wifi_ok && auth->is_logged_in) {
-        device->current_screen = SCREEN_ID_HOME;
-    } else {
-        device->current_screen = SCREEN_ID_SETUP;
-    }
-    ESP_LOGI(TAG, "Loading %s screen",
-             device->current_screen == SCREEN_ID_HOME ? "library" : "setup");
-    loadScreen(device->current_screen);
-
-    // arm the screen sync loop (seeds itself with the screen just loaded; must
-    // be created before the LVGL task starts)
-    ui_state_init();
-
-    /* Start rendering only after the whole UI tree exists. */
-    ESP_ERROR_CHECK(lcd_start_lvgl());
-
-    // populate the library; the request is serviced by the LVGL task, which by
-    // now is running
-    if (wifi_ok && auth->is_logged_in) {
-        library_screen_request_refresh();
-    }
+    // setup display
+    display_init();
+    lvgl_init();
 
     ESP_LOGI(TAG, "ESPSpotifyOS ready");
 }

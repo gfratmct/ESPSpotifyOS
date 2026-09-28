@@ -21,18 +21,11 @@
     }
   },
   "idf.openOcdConfigs": [
-    "board/esp32-wrover-kit-3.3v.cfg"
+    "board/esp32s3-builtin.cfg"
   ],
   "idf.port": "detect",
   "idf.currentSetup": "/home/gabriele/.espressif/v6.1/esp-idf",
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32"
-  },
-  "clangd.path": "C:/Users/gabri/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd.exe",
-  "clangd.enabled": false,
-  "clangd.arguments": [
-    "--background-index",
-    "--query-driver=**",
-    "--compile-commands-dir=C:/Users/gabri/Documents/Codes/ESPSpotifyOS/build"
-  ]
+    "IDF_TARGET": "esp32s3"
+  }
 }

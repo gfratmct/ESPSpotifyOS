@@ -5,15 +5,8 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=5120
 
-# size optimization (flash/RAM pressure with BT+WiFi+LVGL+audio codec)
+# size optimization (flash/RAM pressure with BT+WiFi+audio codec)
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
-
-# lcd display
-CONFIG_LCD_HRES=320
-CONFIG_LCD_VRES=240
-CONFIG_LV_FONT_MONTSERRAT_20=y
-CONFIG_LV_FONT_MONTSERRAT_16=y
-CONFIG_LV_FONT_MONTSERRAT_14=y
 
 # bluetooth classic A2DP sink (Bluedroid), BLE disabled to save memory
 CONFIG_BT_ENABLED=y
@@ -22,12 +15,6 @@ CONFIG_BT_BLUEDROID_ENABLED=y
 CONFIG_BT_CLASSIC_ENABLED=y
 CONFIG_BT_A2DP_ENABLE=y
 CONFIG_BT_BLE_ENABLED=n
-
-# no PSRAM on this board (ESP32-WROOM-32E). Move LVGL off its 64KB static
-# heap pool and onto the C library allocator so it no longer consumes the
-# scarce internal DRAM segment.
-CONFIG_LV_USE_BUILTIN_MALLOC=n
-CONFIG_LV_USE_CLIB_MALLOC=y
 
 # trim Wi-Fi static buffers (Wi-Fi is only used for the optional Web API)
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
@@ -39,8 +26,6 @@ CONFIG_BT_GOEPC_ENABLED=n
 
 # esp_audio_codec: enable only the MP3 decoder
 CONFIG_AUDIO_DECODER_MP3_SUPPORT=y
-CONFIG_XPT2046_Z_THRESHOLD=200
-
 # TLS client buffers: 6KB in / 4KB out is enough for Spotify endpoints
 # (largest handshake record ~4KB) and avoids 16KB-contiguous alloc failures
 # on this memory-tight board (mbedtls_ssl_setup -0x008D).
