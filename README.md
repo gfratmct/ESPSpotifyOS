@@ -2,7 +2,7 @@
 
 > **Disclaimer**: This is an **unofficial, hobby project** built for **personal use only**. It is **not affiliated with, endorsed by, or connected to Spotify** or any other streaming service. Do not use it for commercial purposes.
 
-An ESP-IDF application for ESP32 that pairs with a small media server to play your own music library.
+An ESP-IDF application for ESP32-S3 that pairs with a small media server to play your own music library over AUX (PCM5102).
 
 ## Mission
 
@@ -10,17 +10,17 @@ A personal Spotify companion player. The idea is simple:
 
 1. **Import** - point the companion server at your Spotify library (e.g. liked tracks) to know what you want to play.
 2. **Fetch** - the server finds matching audio for each track via **yt-dlp** and stores it locally.
-3. **Stream** - the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through a speaker.
+3. **Stream** - the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through AUX / a speaker.
 
-In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32 handles playback.
+In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32-S3 handles playback and the OLED UI.
 
 ## Current State
 
-The project is a work in progress. Here's where it stands today.
+The project targets a **custom ESP32-S3 PCB** with SSD1306 OLED, five switches, SPI microSD, and a PCM5102 AUX DAC.
 
-# Some notes
+### Hardware pins
 
-I2C Display Pins:
+I2C Display (SSD1306 128x64):
 - SDA: IO6
 - SCL: IO8
 
@@ -32,44 +32,56 @@ SPI SD Card:
 - CD:   IO47
 
 Switches:
-- SWC: IO4
-- SWB: IO15
-- SWT: IO16
-- SWL: IO18
-- SWR: IO17
+- SWC (Center): IO4
+- SWB (Bottom): IO15
+- SWT (Top):    IO16
+- SWL (Left):   IO18
+- SWR (Right):  IO17
 
-AUX
-- SCK: IO42
-- BCK: IO41
-- DIN: IO40
+AUX (PCM5102 I2S):
+- SCK (MCLK): IO42
+- BCK:  IO41
+- DIN:  IO40
 - LRCK: IO39
-- DET: IO38
+- DET:  IO38 (reserved)
 
 ### What works
 
-- **Display**: minimal initialization placeholder; SSD1306 hardware support and UI are not implemented yet.
+- **Display / UI**: SSD1306 over I2C + LVGL 9. Five tabs cycled with a **short press on Center**: Setup, Library, Import, Settings, Player.
+- **Switches**: debounced GPIO driver (short vs long Center).
 - **Wi-Fi**: station-mode auto-connect with reconnect handling. Credentials are seeded from Kconfig on first boot and persisted in NVS.
-- **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. See [Wi-Fi Provisioning](#wi-fi-provisioning).
-- **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh.
-- **Playback engine**: plays Server tracks via HTTP streaming (resuming with HTTP Range if the stream drops) and SD tracks from the cache, decoded with `esp_audio_codec`. Playback controls and library browsing are not currently available in the firmware UI.
-- **Audio output**: onboard speaker support for the LCDWIKI **E32R28T/E32N28T** board - mono 8-bit output on the ESP32's internal DAC (**GPIO26**) into the onboard amplifier, with the amplifier enable pin (**IO4**, active-low) unmuted during playback and muted when idle. Alternatively, an external I2S DAC (e.g. PCM5102) can be selected. The internal DAC is lo-fi (8-bit mono); use the I2S backend for better quality.
-- **Import to the media server**: long-press a liked track - the server searches for matching audio (yt-dlp), downloads it, and stores it. Deduplication is automatic (re-imports return the existing track).
-- **SD cache / offline**: imported and downloaded tracks are streamed to the SD card (FatFS over the shared SPI bus) so they are available offline. The SD tab lists cached files. *(SD hardware path is implemented but not yet validated on-device.)*
+- **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. Wi-Fi SSID/password entry stays in the browser (`settings.html`) — not on the OLED.
+- **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh. OLED Setup tab shows the `/submit` URL when logged out.
+- **Library tab**: media-server tracks + SD-cached files; Right plays the selection over AUX.
+- **Import tab**: Spotify liked tracks; Right queues `transfer_manager_import`.
+- **Player tab**: now-playing, play/pause, next/prev, volume.
+- **Settings tab**: shows IP + volume; Right (twice) logs out of Spotify. Wi-Fi still via `/settings`.
+- **Playback engine**: Server tracks via HTTP streaming (HTTP Range resume) and SD tracks from the cache, decoded with `esp_audio_codec`.
+- **Audio output**: **AUX only** — external I2S DAC (PCM5102) on the pins above. Onboard DAC / amp paths from older boards are disabled.
+- **SD cache / offline**: FatFS over SPI2; imported tracks can be cached under `/music`.
 - **Media server (backend)**: track search/download via `yt-dlp`, SQLite metadata store, MP3 storage, paginated listing, query/URL import, and a streaming endpoint with HTTP Range support. See [`server/`](server/README.md).
+
+### Out of scope (for now)
+
+- **Bluetooth audio**: ESP32-S3 has BLE only (no Classic BT / A2DP). Pairing to BT speakers/headphones is deferred.
+- On-device Wi-Fi password typing on the OLED.
+- Album art / seek polish.
 
 ### What's next
 
-- **Playback polish**: seeking, album art, and a queue that spans pages (next/prev currently stay within the loaded page).
-- **Audio quality**: the internal DAC path is 8-bit mono; an external I2S DAC (PCM5102 on the `PLAYER_AUX_*` pins) gives 16-bit stereo.
+- Playback polish: seeking, album art, queue that spans pages.
+- Optional external BT audio module (or a Classic-ESP32 variant) if wireless speakers are needed.
+- AUX DET jack-sense auto-routing.
 
 ---
 
 ## Hardware Requirements
 
-- **Board**: ESP32 development board
-- **Display**: SSD1306 OLED (planned; no pins or bus are configured yet)
-- **Speaker**: any small speaker wired to the board's **SPEAKER** 1.25mm 2-pin connector (driven by the onboard amplifier from the ESP32 internal DAC on GPIO26; amplifier enabled via IO4)
-- **Optional**: SD Card Reader (onboard slot), External DAC/I2S Codec (PCM5102) for better-than-8-bit audio
+- **Board**: ESP32-S3 custom PCB (or compatible pinout)
+- **Display**: SSD1306 OLED 128x64 (I2C)
+- **Audio**: PCM5102 (or compatible) I2S DAC on the AUX connector
+- **Input**: five tactile switches (Up / Down / Left / Right / Center)
+- **Optional**: microSD card for offline cache
 
 ---
 
@@ -90,7 +102,11 @@ ESPSpotifyOS/
 │   │   ├── device_state.c/.h       # wifi creds + screen/tab (NVS "device")
 │   │   └── state.c/.h              # state_init() + legacy blob migration
 │   ├── display/
-│   │   └── display.c/.h            # minimal display initialization placeholder
+│   │   └── display.c/.h            # SSD1306 + LVGL port
+│   ├── input/
+│   │   └── buttons.c/.h            # five-switch debounce driver
+│   ├── ui/
+│   │   └── ui.c/.h                 # tab controller + OLED screens
 │   ├── net/
 │   │   ├── http_client.c/.h        # HTTP client wrapper (GET/POST/stream)
 │   │   ├── media_client.c/.h       # companion media server client
@@ -100,7 +116,7 @@ ESPSpotifyOS/
 │   │   ├── webserver.c/.h          # embedded HTTP server lifecycle + route registration
 │   │   └── routes.c/.h             # HTTP endpoints (/submit OAuth, /settings, /wifi-scan)
 │   ├── services/
-│   │   ├── audio_output.c/.h       # I2S output + software volume
+│   │   ├── audio_output.c/.h       # I2S AUX output + software volume
 │   │   ├── player.c/.h             # playback engine (decode/stream/queue)
 │   │   ├── track_cache.c/.h        # streams tracks to the SD cache
 │   │   └── transfer_manager.c/.h   # background import/download worker
@@ -127,6 +143,7 @@ ESPSpotifyOS/
 ### 1. Prerequisites
 
 - [ESP-IDF v5.x / v6.x](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/) installed and sourced.
+- Target: `idf.py set-target esp32s3`
 
 ### 2. Configure the Project
 
@@ -138,10 +155,10 @@ idf.py menuconfig
 Configure Wi-Fi and Spotify credentials:
 - `CONFIG_ESP_WIFI_SSID` / `CONFIG_ESP_WIFI_PASSWORD`: your Wi-Fi network credentials
 - `CONFIG_PLAYER_SPOTIFY_CLIENT_ID` / `CONFIG_PLAYER_SPOTIFY_CLIENT_SECRET`: your Spotify app credentials (from the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
-- `CONFIG_PLAYER_MEDIA_SERVICE_URL` / `CONFIG_PLAYER_MEDIA_API_KEY`: the media server's address (e.g. `http://192.168.1.50:8081`) and the `SECRET` value from its `.env` file. Needed for the long-press import feature.
+- `CONFIG_PLAYER_MEDIA_SERVICE_URL` / `CONFIG_PLAYER_MEDIA_API_KEY`: the media server's address (e.g. `http://192.168.1.50:8081`) and the `SECRET` value from its `.env` file. Needed for the import feature.
 - `CONFIG_PLAYER_AP_SSID` / `CONFIG_PLAYER_AP_PASSWORD`: the provisioning access point (see below). The AP password must be at least 8 characters, or empty for an open AP.
-- `PLAYER_AUDIO_OUTPUT` (Player Configuration): the audio backend - **Onboard ESP32 DAC** (default; E32R28T speaker on GPIO26, lo-fi 8-bit mono), **External I2S DAC** (set the `PLAYER_AUX_*` pins), or **Silent**. `CONFIG_PLAYER_AUDIO_EN_GPIO` (default `4`, active-low) controls the amplifier enable pin; set it to `-1` if your amplifier has no enable pin.
-- `CONFIG_PLAYER_TEST_TONE`: play a short 440 Hz tone at boot to verify the speaker path without streaming. Turn it off once audio works.
+- `PLAYER_AUDIO_OUTPUT`: default **External I2S DAC (PCM5102 AUX)** with the AUX pin defaults above.
+- `CONFIG_PLAYER_TEST_TONE`: play a short 440 Hz tone at boot to verify AUX without streaming. Turn it off once audio works.
 
 ### 3. Build and Flash
 
@@ -151,13 +168,23 @@ idf.py -p <PORT> flash monitor
 ```
 *(To exit the monitor, press `Ctrl + ]`)*
 
+### OLED controls (quick reference)
+
+| Input | Action |
+|-------|--------|
+| Center | Next tab (Setup → Library → Import → Settings → Player). Blocked while Wi-Fi or Spotify login is missing |
+| Hold Center | Play / pause (any tab) |
+| Up / Down | Move in lists; volume in Player and Settings |
+| Right | Action: play (Library), import (Import), logout (Settings, press twice), next track (Player) |
+| Left | Previous page (lists), cancel (Settings), previous track (Player) |
+
 ---
 
 ## Wi-Fi Provisioning
 
 On boot the device tries to join the configured network. If that fails, it
 starts a provisioning access point instead and shows the AP name plus the setup
-URL on the screen:
+URL on the OLED:
 
 1. Join the `ESPSpotifyOS-Setup` access point (password from
    `CONFIG_PLAYER_AP_PASSWORD`, default `spotify-setup`).

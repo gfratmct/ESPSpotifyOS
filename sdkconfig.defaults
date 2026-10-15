@@ -5,24 +5,16 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=5120
 
-# size optimization (flash/RAM pressure with BT+WiFi+audio codec)
+# size optimization (flash/RAM pressure with WiFi + audio + LVGL)
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 
-# bluetooth classic A2DP sink (Bluedroid), BLE disabled to save memory
-CONFIG_BT_ENABLED=y
-CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY=y
-CONFIG_BT_BLUEDROID_ENABLED=y
-CONFIG_BT_CLASSIC_ENABLED=y
-CONFIG_BT_A2DP_ENABLE=y
-CONFIG_BT_BLE_ENABLED=n
+# ESP32-S3: no Classic Bluetooth / A2DP. Keep BT off to free RAM.
+CONFIG_BT_ENABLED=n
 
-# trim Wi-Fi static buffers (Wi-Fi is only used for the optional Web API)
+# trim Wi-Fi static buffers
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
 CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
-# A2DP + AVRCP transport only; no cover-art / object-exchange profiles
-CONFIG_BT_AVRCP_CT_COVER_ART_ENABLED=n
-CONFIG_BT_GOEPC_ENABLED=n
 
 # esp_audio_codec: enable only the MP3 decoder
 CONFIG_AUDIO_DECODER_MP3_SUPPORT=y
@@ -35,3 +27,27 @@ CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=6144
 # accounts.spotify.com stall; 1500B passes fine on 5GHz). 536-byte MSS keeps
 # every segment well under the loss threshold.
 CONFIG_LWIP_TCP_MSS=536
+
+# Default audio path: AUX PCM5102 over I2S
+CONFIG_PLAYER_AUDIO_OUT_I2S=y
+CONFIG_PLAYER_AUDIO_EN_GPIO=-1
+CONFIG_PLAYER_AUX_BCK_GPIO=41
+CONFIG_PLAYER_AUX_DIN_GPIO=40
+CONFIG_PLAYER_AUX_LRCK_GPIO=39
+CONFIG_PLAYER_AUX_SCK_GPIO=42
+CONFIG_PLAYER_AUX_DET_GPIO=38
+
+CONFIG_PLAYER_SD_CS_GPIO=21
+CONFIG_PLAYER_SD_MOSI_GPIO=11
+CONFIG_PLAYER_SD_MISO_GPIO=12
+CONFIG_PLAYER_SD_SCK_GPIO=14
+CONFIG_PLAYER_SD_CD_GPIO=47
+
+# OLED-friendly LVGL defaults: 1-bit pixel font (anti-aliased fonts break up
+# on a monochrome panel), dark mono theme = white on black
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LV_FONT_DEFAULT_UNSCII_8=y
+# CONFIG_LV_FONT_MONTSERRAT_8 is not set
+# CONFIG_LV_FONT_MONTSERRAT_12 is not set
+# CONFIG_LV_FONT_MONTSERRAT_14 is not set
+CONFIG_LV_USE_THEME_MONO=y

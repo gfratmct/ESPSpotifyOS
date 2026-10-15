@@ -99,6 +99,9 @@ static void migrate_legacy_blob(void)
 
     memcpy(device->wifi_ssid, ssid, sizeof(device->wifi_ssid));
     memcpy(device->wifi_password, password, sizeof(device->wifi_password));
+    if (screen > SCREEN_ID_PLAYER) {
+        screen = SCREEN_ID_SETUP;
+    }
     device->current_screen = screen;
 
     auth_state_save();

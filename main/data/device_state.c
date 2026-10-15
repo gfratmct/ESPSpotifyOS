@@ -44,6 +44,9 @@ esp_err_t device_state_load(void)
     }
 
     memcpy(&g_device_state, &loaded, sizeof(g_device_state));
+    if (g_device_state.current_screen > SCREEN_ID_PLAYER) {
+        g_device_state.current_screen = SCREEN_ID_SETUP;
+    }
     ESP_LOGI(TAG, "Device state loaded (screen=%d)", g_device_state.current_screen);
     return ESP_OK;
 }

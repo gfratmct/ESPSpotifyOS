@@ -51,9 +51,9 @@ esp_err_t audio_output_write(int16_t *samples, size_t sample_count);
 /**
  * @brief Enable or mute the speaker amplifier.
  *
- * Drives the PLAYER_AUDIO_EN_GPIO pin (IO4 on the E32R28T, active-low).
- * No-op when no enable GPIO is configured. The player unmutes on playback
- * and mutes again when idle.
+ * Drives the PLAYER_AUDIO_EN_GPIO pin when configured (>= 0).
+ * No-op when no enable GPIO is configured (AUX/PCM5102 boards). The player
+ * unmutes on playback and mutes again when idle.
  */
 void audio_output_amp_enable(bool enable);
 

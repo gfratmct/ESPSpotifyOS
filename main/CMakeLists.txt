@@ -6,6 +6,7 @@ set(COMPONENT_SRCS
   "data/device_state.c"
   "data/state.c"
   "display/display.c"
+  "input/buttons.c"
   "net/http_client.c"
   "net/media_client.c"
   "net/spotify_auth.c"
@@ -17,6 +18,7 @@ set(COMPONENT_SRCS
   "services/audio_output.c"
   "services/player.c"
   "storage/sd_storage.c"
+  "ui/ui.c"
   "utils/storage.c"
 )
 
@@ -49,7 +51,6 @@ set(DRIVER_DEPS
   esp_driver_i2c
   esp_driver_sdspi
   esp_driver_gpio
-  esp_driver_dac
   sdmmc
   fatfs
 )

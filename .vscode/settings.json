@@ -1,5 +1,17 @@
 {
-  "C_Cpp.intelliSenseEngine": "default",
+  // Cursor has no Microsoft C/C++ IntelliSense. Use Espressif clangd + compile_commands.
+  "clangd.enable": true,
+  "clangd.checkUpdates": false,
+  "clangd.onConfigChanged": "restart",
+  "clangd.path": "/home/gabriele/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--header-insertion=never",
+    "--resource-dir=/home/gabriele/.espressif/tools/esp-clang/esp-21.1.3_20260408/esp-clang/lib/clang/21",
+    "--query-driver=/home/gabriele/.espressif/tools/xtensa-esp-elf/esp-15.2.0_20251204/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+    "--compile-commands-dir=/home/gabriele/Codes/ESPSpotifyOS/build"
+  ],
+  "C_Cpp.intelliSenseEngine": "disabled",
   "C_Cpp.errorSquiggles": "disabled",
   "idf.extensionActivationMode": "always",
   "cmake.configureOnOpen": false,

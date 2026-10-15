@@ -71,16 +71,34 @@ endmenu
 menu "Player Configuration"
 
     config PLAYER_DEVICE_NAME
-        string "Bluetooth device name"
-        default "ESP32 Spotify Player"
+        string "Device display name"
+        default "ESPSpotifyOS"
         help
-            Name advertised by the A2DP sink when pairing.
+            Friendly name shown on the OLED and used in logs.
 
     config PLAYER_SD_CS_GPIO
         int "SD card chip select GPIO"
-        default 5
+        default 21
         help
-            Chip-select line of the onboard microSD slot.
+            Chip-select line of the microSD slot.
+
+    config PLAYER_SD_MOSI_GPIO
+        int "SD SPI MOSI GPIO"
+        default 11
+
+    config PLAYER_SD_MISO_GPIO
+        int "SD SPI MISO GPIO"
+        default 12
+
+    config PLAYER_SD_SCK_GPIO
+        int "SD SPI SCK GPIO"
+        default 14
+
+    config PLAYER_SD_CD_GPIO
+        int "SD card detect GPIO"
+        default 47
+        help
+            Card-detect input. -1 = not connected (always attempt mount).
 
     config PLAYER_SD_MOUNT_POINT
         string "SD card mount point"
@@ -92,7 +110,7 @@ menu "Player Configuration"
         string "Music directory on SD card"
         default "/music"
         help
-            Directory scanned for .mp3 files for local playback.
+            Directory scanned for audio files for local playback.
 
     config PLAYER_MUSIC_MAX_FILES
         int "Maximum number of indexed music files"
@@ -104,13 +122,12 @@ menu "Player Configuration"
         bool "Play a 440 Hz test tone at boot"
         default n
         help
-            Enable to play a short test tone through the DAC after startup,
-            useful to verify the audio path without a phone connected.
+            Enable to play a short test tone through the AUX DAC after startup,
+            useful to verify the audio path without streaming.
 
     choice PLAYER_AUDIO_OUTPUT
         prompt "Audio output backend"
-        default PLAYER_AUDIO_OUT_DAC if IDF_TARGET_ESP32
-        default PLAYER_AUDIO_OUT_SILENT
+        default PLAYER_AUDIO_OUT_I2S
         help
             Where the decoded PCM is sent during playback.
 
@@ -120,69 +137,84 @@ menu "Player Configuration"
                 Playback runs paced to real time but produces no audio.
 
         config PLAYER_AUDIO_OUT_I2S
-            bool "External I2S DAC (PCM5102)"
+            bool "External I2S DAC (PCM5102 AUX)"
             help
                 Stereo 16-bit I2S output on the AUX pins below.
 
         config PLAYER_AUDIO_OUT_DAC
-            bool "Onboard ESP32 DAC (E32R28T speaker)"
+            bool "Onboard ESP32 DAC (legacy)"
             depends on IDF_TARGET_ESP32
             help
-                Mono 8-bit output on the internal DAC (GPIO26), wired to the
-                onboard amplifier of the LCDWIKI E32R28T/E32N28T display
-                module. Lo-fi quality; use an external I2S DAC for better
-                audio.
+                Mono 8-bit output on the internal DAC. Not used on the
+                ESP32-S3 custom PCB (use I2S/AUX instead).
     endchoice
 
     config PLAYER_AUDIO_EN_GPIO
         int "Speaker amplifier enable GPIO"
-        default 4
+        default -1
         help
-            GPIO that enables the onboard audio power amplifier. On the
-            LCDWIKI E32R28T/E32N28T this is IO4. -1 = no enable pin, the
-            amplifier is always on.
+            GPIO that enables an onboard amplifier. -1 = none (AUX/PCM5102 board).
 
     config PLAYER_AUDIO_EN_ACTIVE_LOW
         bool "Amplifier enable is active-low"
         default y
         help
-            Set if the amplifier is enabled by driving the enable GPIO low
-            (the E32R28T/E32N28T audio enable is low-level enable).
+            Set if the amplifier is enabled by driving the enable GPIO low.
 
     config PLAYER_AUX_BCK_GPIO
-        int "AUX I2S bit clock GPIO (PCM5102, placeholder)"
-        default -1
+        int "AUX I2S bit clock GPIO (PCM5102)"
+        default 41
         depends on PLAYER_AUDIO_OUT_I2S
         help
-            I2S bit-clock pin of the external DAC. -1 = not connected.
+            I2S bit-clock pin of the external DAC.
 
     config PLAYER_AUX_DIN_GPIO
-        int "AUX I2S data GPIO (PCM5102, placeholder)"
-        default -1
+        int "AUX I2S data GPIO (PCM5102)"
+        default 40
         depends on PLAYER_AUDIO_OUT_I2S
         help
-            I2S data pin of the external DAC. -1 = not connected.
+            I2S data pin of the external DAC.
 
     config PLAYER_AUX_LRCK_GPIO
-        int "AUX I2S word-select GPIO (PCM5102, placeholder)"
-        default -1
+        int "AUX I2S word-select GPIO (PCM5102)"
+        default 39
         depends on PLAYER_AUDIO_OUT_I2S
         help
-            I2S word-select pin of the external DAC. -1 = not connected.
+            I2S word-select pin of the external DAC.
 
     config PLAYER_AUX_SCK_GPIO
-        int "AUX I2S master clock GPIO (PCM5102, placeholder)"
-        default -1
+        int "AUX I2S master clock GPIO (PCM5102)"
+        default 42
         depends on PLAYER_AUDIO_OUT_I2S
         help
-            I2S master-clock pin of the external DAC. -1 = not connected.
+            I2S master-clock pin of the external DAC. -1 = unused.
 
     config PLAYER_AUX_DET_GPIO
-        int "AUX jack plug-detect GPIO (placeholder)"
-        default -1
+        int "AUX jack plug-detect GPIO"
+        default 38
         help
-            Input wired to the AUX jack insert switch on the future line-in board.
+            Input wired to the AUX jack insert switch. Reserved; unused for now.
             -1 = not connected.
+
+    config PLAYER_BTN_CENTER_GPIO
+        int "Center switch GPIO"
+        default 4
+
+    config PLAYER_BTN_BOTTOM_GPIO
+        int "Bottom switch GPIO"
+        default 15
+
+    config PLAYER_BTN_TOP_GPIO
+        int "Top switch GPIO"
+        default 16
+
+    config PLAYER_BTN_LEFT_GPIO
+        int "Left switch GPIO"
+        default 18
+
+    config PLAYER_BTN_RIGHT_GPIO
+        int "Right switch GPIO"
+        default 17
 
     config PLAYER_SPOTIFY_CLIENT_ID
         string "Spotify Client ID"
@@ -236,10 +268,10 @@ menu "Player Configuration"
             Value of the SECRET variable from the media server's .env file.
             Sent as the X-API-Key header on every media service request.
 
-    config PLAYER_BT_VOLUME_STEP
+    config PLAYER_VOLUME_STEP
         int "Volume step per press"
-        default 10
+        default 5
         help
-            Volume change applied by a single Volume + / - press.
+            Volume change applied by a single volume Up / Down press.
 
 endmenu

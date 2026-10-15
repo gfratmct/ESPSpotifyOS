@@ -1,8 +1,14 @@
-# Clangd config for ESP-IDF (GCC compile_commands + clang frontend).
-# -m* / -f* are GCC/Xtensa flags clangd does not understand; drop them and
-# let --query-driver supply the real toolchain include path.
+# Cursor uses clangd (no Microsoft C/C++). ESP-IDF builds with GCC; clangd
+# still needs Clang builtin headers (stddef.h) from the esp-clang package.
+# Do not add picolibc as -isystem here: that reorders libc headers and
+# breaks ESP-IDF's platform_include wrappers. --query-driver in
+# .vscode/settings.json extracts those paths from xtensa-esp32s3-elf-gcc.
 CompileFlags:
   CompilationDatabase: build
   Add:
     - -Wno-unknown-warning-option
+    - -resource-dir=/home/gabriele/.espressif/tools/esp-clang/esp-21.1.3_20260408/esp-clang/lib/clang/21
+    - -isystem
+    - /home/gabriele/.espressif/tools/esp-clang/esp-21.1.3_20260408/esp-clang/lib/clang/21/include
+    - -std=c21
   Remove: [-m*, -f*]

@@ -9,12 +9,11 @@ extern "C" {
 #endif
 
 enum ScreensEnum {
-    SCREEN_ID_HOME,
-    SCREEN_ID_SPOTIFY,
-    SCREEN_ID_PLAYER,
-    SCREEN_ID_SETUP,
+    SCREEN_ID_SETUP = 0,
     SCREEN_ID_LIBRARY,
-    SCREEN_ID_NONE
+    SCREEN_ID_IMPORT,
+    SCREEN_ID_SETTINGS,
+    SCREEN_ID_PLAYER,
 };
 
 // Device-level state, persisted in the NVS "device" namespace.

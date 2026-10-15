@@ -96,7 +96,7 @@ static void pace_silent(size_t sample_count)
     }
 }
 
-// ---- amplifier enable (E32R28T IO4) ------------------------------------------
+// ---- amplifier enable (optional) ---------------------------------------------
 
 static void amp_init(void)
 {

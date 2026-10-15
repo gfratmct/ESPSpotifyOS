@@ -147,11 +147,11 @@ esp_err_t spotify_exchange_code_for_token(const char *code)
 {
     if (!code || !*code) return ESP_ERR_INVALID_ARG;
 
-    char auth_header[192];
+    char auth_header[512];
     esp_err_t err = build_basic_auth_header(auth_header, sizeof(auth_header));
     if (err != ESP_OK) return err;
 
-    char body[768];
+    char body[1024];
     int written = snprintf(body, sizeof(body),
                            "grant_type=authorization_code&code=%s&redirect_uri=%s",
                            code, SPOTIFY_REDIRECT_URI);
@@ -196,14 +196,14 @@ esp_err_t spotify_refresh_access_token(void)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char auth_header[192];
+    char auth_header[512];
     esp_err_t err = build_basic_auth_header(auth_header, sizeof(auth_header));
     if (err != ESP_OK) {
         spotify_logout();
         return err;
     }
 
-    char body[640]; // "grant_type=refresh_token&refresh_token=" + 511-char token + NUL
+    char body[1024]; // "grant_type=refresh_token&refresh_token=" + 511-char token + NUL
     snprintf(body, sizeof(body), "grant_type=refresh_token&refresh_token=%s",
              (char *)state->refresh_token);
 

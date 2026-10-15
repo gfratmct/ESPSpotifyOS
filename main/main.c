@@ -11,13 +11,14 @@
 #include "data/device_state.h"
 #include "data/state.h"
 #include "display/display.h"
+#include "input/buttons.h"
 #include "net/spotify_auth.h"
 #include "server/webserver.h"
 #include "services/audio_output.h"
 #include "services/player.h"
 #include "storage/sd_storage.h"
+#include "ui/ui.h"
 #include "utils/storage.h"
-#include "display/display.h"
 
 static const char *TAG = "main";
 #define APP_WEBSERVER_PORT CONFIG_PLAYER_WEBSERVER_PORT
@@ -35,9 +36,9 @@ void app_main(void)
     ESP_LOGI(TAG, "initializing display");
     ESP_ERROR_CHECK(display_init());
 
-    // Audio output + playback engine. Both are lazy: boot only mutes the amp
-    // pin, and the DAC/I2S backend + player task start on first playback. This
-    // keeps the boot heap free for Wi-Fi/TLS (SD is mounted lazily too).
+    // Audio output + playback engine. Both are lazy: boot only configures the
+    // amp pin (none on this board), and the I2S backend + player task start on
+    // first playback. This keeps the boot heap free for Wi-Fi/TLS.
     audio_output_init();
     player_init();
 
@@ -75,9 +76,15 @@ void app_main(void)
                  CONFIG_PLAYER_AP_SSID, url);
     }
 
-    // setup display
-    display_init();
-    lvgl_init();
+    // SD is optional; missing card must not block the UI.
+    esp_err_t sd_err = sd_storage_ensure_mounted();
+    if (sd_err != ESP_OK) {
+        ESP_LOGW(TAG, "SD not mounted: %s", esp_err_to_name(sd_err));
+    }
+
+    ESP_ERROR_CHECK(lvgl_init());
+    ESP_ERROR_CHECK(buttons_init());
+    ESP_ERROR_CHECK(ui_init());
 
     ESP_LOGI(TAG, "ESPSpotifyOS ready");
 }

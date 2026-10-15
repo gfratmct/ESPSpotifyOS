@@ -17,13 +17,9 @@ typedef struct {
 } sd_file_t;
 
 /**
- * @brief Mount the SD card over SPI (shares the LCD SPI bus, which must be
- *        initialized first). Idempotent; returns the first error if mounting
- *        fails (e.g. no card inserted). Retried at most once per boot.
- *
- * Mounting is deferred until the card is actually needed (SD tab, cache
- * download, first playback) to keep the boot-time heap free. Prefer
- * sd_storage_ensure_mounted() at call sites.
+ * @brief Initialize the SPI2 bus (if needed) and mount the SD card.
+ *        Idempotent; returns the first error if mounting fails (e.g. no card).
+ *        Retried at most once per boot.
  */
 esp_err_t sd_storage_mount(void);
 
