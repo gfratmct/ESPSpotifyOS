@@ -11,6 +11,7 @@
 
 #define BTN_DEBOUNCE_MS   40
 #define BTN_LONG_PRESS_MS 700
+#define BTN_TOP_HOLD_MS   5000
 #define BTN_POLL_MS       20
 #define BTN_QUEUE_LEN     16
 #define BTN_TASK_STACK    3072
@@ -19,7 +20,8 @@
 typedef struct {
     gpio_num_t gpio;
     button_id_t short_id;
-    bool supports_long;
+    button_id_t long_id;
+    int long_press_ms; // 0 = release always sends the short event
     bool stable_pressed;
     bool long_fired;
     int raw_pressed;
@@ -29,11 +31,11 @@ typedef struct {
 
 static QueueHandle_t s_queue;
 static btn_state_t s_btns[] = {
-    { CONFIG_PLAYER_BTN_TOP_GPIO,    BTN_UP,          false, false, false, 0, 0, 0 },
-    { CONFIG_PLAYER_BTN_BOTTOM_GPIO, BTN_DOWN,        false, false, false, 0, 0, 0 },
-    { CONFIG_PLAYER_BTN_LEFT_GPIO,   BTN_LEFT,        false, false, false, 0, 0, 0 },
-    { CONFIG_PLAYER_BTN_RIGHT_GPIO,  BTN_RIGHT,       false, false, false, 0, 0, 0 },
-    { CONFIG_PLAYER_BTN_CENTER_GPIO, BTN_CENTER,      true,  false, false, 0, 0, 0 },
+    { CONFIG_PLAYER_BTN_TOP_GPIO,    BTN_UP,     BTN_UP_LONG,     BTN_TOP_HOLD_MS,   false, false, 0, 0, 0 },
+    { CONFIG_PLAYER_BTN_BOTTOM_GPIO, BTN_DOWN,   BTN_DOWN,        0,                 false, false, 0, 0, 0 },
+    { CONFIG_PLAYER_BTN_LEFT_GPIO,   BTN_LEFT,   BTN_LEFT,        0,                 false, false, 0, 0, 0 },
+    { CONFIG_PLAYER_BTN_RIGHT_GPIO,  BTN_RIGHT,  BTN_RIGHT,       0,                 false, false, 0, 0, 0 },
+    { CONFIG_PLAYER_BTN_CENTER_GPIO, BTN_CENTER, BTN_CENTER_LONG, BTN_LONG_PRESS_MS, false, false, 0, 0, 0 },
 };
 
 const char *button_name(button_id_t id)
@@ -45,6 +47,7 @@ const char *button_name(button_id_t id)
     case BTN_RIGHT: return "RIGHT";
     case BTN_CENTER: return "CENTER";
     case BTN_CENTER_LONG: return "CENTER_LONG";
+    case BTN_UP_LONG: return "UP_LONG";
     default: return "?";
     }
 }
@@ -86,9 +89,10 @@ static void buttons_task(void *arg)
                 ESP_LOGD(TAG, "%s pressed (GPIO%d)", button_name(b->short_id), b->gpio);
             } else if (raw && b->stable_pressed) {
                 b->held_ms += BTN_POLL_MS;
-                if (b->supports_long && !b->long_fired && b->held_ms >= BTN_LONG_PRESS_MS) {
+                // Fire once, while still held, so a 5 s Top press is not also a short Up.
+                if (b->long_press_ms > 0 && !b->long_fired && b->held_ms >= b->long_press_ms) {
                     b->long_fired = true;
-                    push_event(BTN_CENTER_LONG);
+                    push_event(b->long_id);
                 }
             } else if (!raw && b->stable_pressed) {
                 b->stable_pressed = false;
@@ -152,7 +156,8 @@ esp_err_t buttons_init(void)
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGI(TAG, "switches ready (long press = %d ms)", BTN_LONG_PRESS_MS);
+    ESP_LOGI(TAG, "switches ready (center long %d ms, top hold %d ms)",
+             BTN_LONG_PRESS_MS, BTN_TOP_HOLD_MS);
     return ESP_OK;
 }
 

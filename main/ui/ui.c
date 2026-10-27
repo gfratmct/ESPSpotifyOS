@@ -18,15 +18,17 @@
 #include "net/media_client.h"
 #include "net/spotify_api.h"
 #include "net/spotify_auth.h"
+#include "services/audio_output.h"
 #include "services/player.h"
 #include "services/transfer_manager.h"
 #include "storage/sd_storage.h"
 
 #define TAG "ui"
 
-#define UI_PAGE_SIZE       4
+#define UI_PAGE_SIZE       6
 // One server page plus one SD page on the first library page.
 #define UI_LIB_CAP         (UI_PAGE_SIZE * 2)
+#define UI_ACCENT_HEX      0x1DB954
 #define UI_IMPORT_CAP      UI_PAGE_SIZE
 #define UI_POLL_MS         250
 #define UI_FETCH_STACK     8192
@@ -59,9 +61,25 @@ typedef enum {
     FETCH_IMPORT,
 } fetch_cmd_t;
 
-static lv_obj_t *s_title;
-static lv_obj_t *s_body;
+static lv_obj_t *s_header;
+static lv_obj_t *s_text;
 static lv_obj_t *s_status;
+static lv_obj_t *s_rows[UI_PAGE_SIZE];
+static lv_obj_t *s_row_title[UI_PAGE_SIZE];
+static lv_obj_t *s_row_artist[UI_PAGE_SIZE];
+static lv_obj_t *s_player;
+static lv_obj_t *s_play_title;
+static lv_obj_t *s_play_artist;
+static lv_obj_t *s_play_bar;
+static lv_obj_t *s_play_time;
+static lv_obj_t *s_play_meta;
+
+typedef struct {
+    char title[96];
+    char artist[64];
+} row_snap_t;
+
+static row_snap_t s_row_snap[UI_PAGE_SIZE];
 
 static enum ScreensEnum s_screen = SCREEN_ID_SETUP;
 static bool s_setup_locked;
@@ -349,101 +367,120 @@ static void render_setup(char *body, size_t body_sz, char *status, size_t status
     snprintf(status, status_sz, "C:next tab");
 }
 
-static void render_list(char *body, size_t body_sz, const char *const *titles,
-                        const char *kinds, size_t count, int sel)
+// Copies the visible library page. message is set when there is nothing to list.
+static void snapshot_library(size_t *count, int *sel, char *status, size_t status_sz,
+                             char *message, size_t message_sz)
 {
-    body[0] = '\0';
-    size_t used = 0;
-    for (size_t i = 0; i < count; i++) {
-        char line[48];
-        const char mark = ((int)i == sel) ? '>' : ' ';
-        if (kinds) {
-            snprintf(line, sizeof(line), "%c%c %.13s\n", mark, kinds[i], titles[i]);
-        } else {
-            snprintf(line, sizeof(line), "%c %.14s\n", mark, titles[i]);
-        }
-        size_t len = strlen(line);
-        if (used + len >= body_sz) {
-            break;
-        }
-        memcpy(body + used, line, len + 1);
-        used += len;
-    }
-}
+    *count = 0;
+    *sel = 0;
+    message[0] = '\0';
+    status[0] = '\0';
 
-static void render_library(char *body, size_t body_sz, char *status, size_t status_sz)
-{
     if (xSemaphoreTake(s_data_lock, pdMS_TO_TICKS(20)) != pdTRUE) {
-        snprintf(body, body_sz, "...");
-        status[0] = '\0';
+        snprintf(message, message_sz, "...");
         return;
     }
 
     if (s_lib_loading && s_lib_count == 0) {
-        snprintf(body, body_sz, "Loading...");
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "Loading...");
+        snprintf(status, status_sz, "C: next tab");
     } else if (s_lib_err[0] && s_lib_count == 0) {
-        snprintf(body, body_sz, "%s", s_lib_err);
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "%s", s_lib_err);
+        snprintf(status, status_sz, "C: next tab");
     } else if (s_lib_count == 0) {
-        snprintf(body, body_sz, "Empty library\nImport tracks\nor insert SD");
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "Empty library\nImport tracks or insert an SD card");
+        snprintf(status, status_sz, "C: next tab");
     } else {
-        const char *titles[UI_LIB_CAP];
-        char kinds[UI_LIB_CAP];
-        for (size_t i = 0; i < s_lib_count; i++) {
-            titles[i] = s_lib[i].title;
-            kinds[i] = (s_lib[i].src == LIB_SRC_SERVER) ? 'S' : 'D';
+        // The first library page appends an SD page, so the list can be longer
+        // than the six rows on screen. Slide a window so the cursor stays visible.
+        const size_t n = s_lib_count;
+        int cursor = s_lib_sel;
+        if (cursor < 0 || (size_t)cursor >= n) {
+            cursor = 0;
         }
-        render_list(body, body_sz, titles, kinds, s_lib_count, s_lib_sel);
-        snprintf(status, status_sz, "%d/%d R:play C:tab",
+        size_t start = 0;
+        if (n > UI_PAGE_SIZE && (size_t)cursor + 1 > UI_PAGE_SIZE) {
+            start = (size_t)cursor + 1 - UI_PAGE_SIZE;
+        }
+        size_t shown = n - start;
+        if (shown > UI_PAGE_SIZE) {
+            shown = UI_PAGE_SIZE;
+        }
+        for (size_t i = 0; i < shown; i++) {
+            const lib_item_t *it = &s_lib[start + i];
+            strncpy(s_row_snap[i].title, it->title, sizeof(s_row_snap[i].title) - 1);
+            s_row_snap[i].title[sizeof(s_row_snap[i].title) - 1] = '\0';
+            if (it->artist[0]) {
+                strncpy(s_row_snap[i].artist, it->artist, sizeof(s_row_snap[i].artist) - 1);
+            } else if (it->src == LIB_SRC_SERVER) {
+                strncpy(s_row_snap[i].artist, "Server", sizeof(s_row_snap[i].artist) - 1);
+            } else {
+                strncpy(s_row_snap[i].artist, "SD", sizeof(s_row_snap[i].artist) - 1);
+            }
+            s_row_snap[i].artist[sizeof(s_row_snap[i].artist) - 1] = '\0';
+        }
+        *count = shown;
+        *sel = cursor - (int)start;
+        snprintf(status, status_sz, "%d/%d   R: play",
                  s_lib_offset + s_lib_sel + 1,
                  s_lib_total > 0 ? s_lib_total : (int)s_lib_count);
     }
     xSemaphoreGive(s_data_lock);
 }
 
-static void render_import(char *body, size_t body_sz, char *status, size_t status_sz)
+static void snapshot_import(size_t *count, int *sel, char *status, size_t status_sz,
+                            char *message, size_t message_sz)
 {
+    *count = 0;
+    *sel = 0;
+    message[0] = '\0';
+    status[0] = '\0';
+
     transfer_state_t xfer = transfer_manager_state();
     if (xfer == TRANSFER_RUNNING) {
-        snprintf(body, body_sz, "Importing...\nPlease wait");
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "Importing...\nPlease wait");
+        snprintf(status, status_sz, "C: next tab");
         return;
     }
     if (xfer == TRANSFER_DONE_NEW || xfer == TRANSFER_DONE_DUPLICATE) {
-        snprintf(body, body_sz, "Import done\n(%s)",
+        snprintf(message, message_sz, "Import done\n(%s)",
                  xfer == TRANSFER_DONE_NEW ? "new" : "already there");
-        snprintf(status, status_sz, "R:ok C:tab");
+        snprintf(status, status_sz, "R: dismiss");
         return;
     }
     if (xfer == TRANSFER_DONE_FAILED) {
-        snprintf(body, body_sz, "Import failed\n%.40s", transfer_manager_error());
-        snprintf(status, status_sz, "R:ok C:tab");
+        snprintf(message, message_sz, "Import failed\n%s", transfer_manager_error());
+        snprintf(status, status_sz, "R: dismiss");
         return;
     }
 
     if (xSemaphoreTake(s_data_lock, pdMS_TO_TICKS(20)) != pdTRUE) {
-        snprintf(body, body_sz, "...");
-        status[0] = '\0';
+        snprintf(message, message_sz, "...");
         return;
     }
     if (s_imp_loading && s_imp_count == 0) {
-        snprintf(body, body_sz, "Loading liked...");
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "Loading liked tracks...");
+        snprintf(status, status_sz, "C: next tab");
     } else if (s_imp_err[0] && s_imp_count == 0) {
-        snprintf(body, body_sz, "%s", s_imp_err);
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "%s", s_imp_err);
+        snprintf(status, status_sz, "C: next tab");
     } else if (s_imp_count == 0) {
-        snprintf(body, body_sz, "No liked tracks");
-        snprintf(status, status_sz, "C:next tab");
+        snprintf(message, message_sz, "No liked tracks");
+        snprintf(status, status_sz, "C: next tab");
     } else {
-        const char *titles[UI_IMPORT_CAP];
-        for (size_t i = 0; i < s_imp_count; i++) {
-            titles[i] = s_imp[i].title;
+        size_t n = s_imp_count;
+        if (n > UI_PAGE_SIZE) {
+            n = UI_PAGE_SIZE;
         }
-        render_list(body, body_sz, titles, NULL, s_imp_count, s_imp_sel);
-        snprintf(status, status_sz, "%d/%d R:get C:tab",
+        for (size_t i = 0; i < n; i++) {
+            strncpy(s_row_snap[i].title, s_imp[i].title, sizeof(s_row_snap[i].title) - 1);
+            s_row_snap[i].title[sizeof(s_row_snap[i].title) - 1] = '\0';
+            strncpy(s_row_snap[i].artist, s_imp[i].artist, sizeof(s_row_snap[i].artist) - 1);
+            s_row_snap[i].artist[sizeof(s_row_snap[i].artist) - 1] = '\0';
+        }
+        *count = n;
+        *sel = s_imp_sel;
+        snprintf(status, status_sz, "%d/%d   R: import",
                  s_imp_offset + s_imp_sel + 1,
                  s_imp_total > 0 ? s_imp_total : (int)s_imp_count);
     }
@@ -459,30 +496,9 @@ static void render_settings(char *body, size_t body_sz, char *status, size_t sta
     }
     const char *ip = wifi_is_connected() ? wifi_get_ip()
                      : (wifi_is_ap_active() ? WIFI_AP_IP : "-");
-    snprintf(body, body_sz, "IP %s\nVol %u%% (U/D)\nR: logout",
+    snprintf(body, body_sz, "IP %s\nVolume %u%%\nUp / Down to change\nRight: log out",
              ip, (unsigned)player_get_volume());
-    snprintf(status, status_sz, "WiFi: /settings");
-}
-
-static void render_player(char *body, size_t body_sz, char *status, size_t status_sz)
-{
-    player_status_t st;
-    player_get_status(&st);
-
-    if (st.count == 0) {
-        snprintf(body, body_sz, "Nothing queued\nPick a track\nin Library");
-        snprintf(status, status_sz, "C:next tab");
-        return;
-    }
-
-    snprintf(body, body_sz, "%.16s\n%.16s\n%d/%ds vol%u%%",
-             st.title[0] ? st.title : "-",
-             st.artist[0] ? st.artist : "-",
-             st.position_s, st.duration_s > 0 ? st.duration_s : 0,
-             (unsigned)st.volume);
-    snprintf(status, status_sz, "%s %u/%u  hold C",
-             player_state_name(st.state),
-             (unsigned)(st.index + 1), (unsigned)st.count);
+    snprintf(status, status_sz, "Wi-Fi: /settings");
 }
 
 static void ui_set_label_if_changed(lv_obj_t *label, const char *text)
@@ -494,36 +510,165 @@ static void ui_set_label_if_changed(lv_obj_t *label, const char *text)
     lv_label_set_text(label, text);
 }
 
+static void obj_set_hidden(lv_obj_t *obj, bool hidden)
+{
+    if (lv_obj_is_hidden(obj) == hidden) {
+        return;
+    }
+    lv_obj_set_hidden(obj, hidden);
+}
+
+static const lv_font_t *ui_font_body(void)
+{
+#if LV_FONT_MONTSERRAT_16
+    return &lv_font_montserrat_16;
+#else
+    return LV_FONT_DEFAULT;
+#endif
+}
+
+static const lv_font_t *ui_font_title(void)
+{
+#if LV_FONT_MONTSERRAT_20
+    return &lv_font_montserrat_20;
+#else
+    return ui_font_body();
+#endif
+}
+
+// Message screens (setup, settings, empty lists) use the wrapping text label.
+static void ui_show_text(const char *text)
+{
+    obj_set_hidden(s_text, false);
+    obj_set_hidden(s_player, true);
+    for (int i = 0; i < UI_PAGE_SIZE; i++) {
+        obj_set_hidden(s_rows[i], true);
+    }
+    ui_set_label_if_changed(s_text, text);
+}
+
+// Selected title scrolls; the others clip so six animations do not repaint the panel.
+static void ui_show_rows(size_t count, int sel)
+{
+    obj_set_hidden(s_text, true);
+    obj_set_hidden(s_player, true);
+    if (sel < 0 || (size_t)sel >= count) {
+        sel = 0;
+    }
+    for (int i = 0; i < UI_PAGE_SIZE; i++) {
+        if ((size_t)i >= count) {
+            obj_set_hidden(s_rows[i], true);
+            continue;
+        }
+        obj_set_hidden(s_rows[i], false);
+        ui_set_label_if_changed(s_row_title[i], s_row_snap[i].title);
+        ui_set_label_if_changed(s_row_artist[i], s_row_snap[i].artist);
+
+        const bool selected = (i == sel);
+        const lv_label_long_mode_t mode = selected ? LV_LABEL_LONG_SCROLL_CIRCULAR
+                                                   : LV_LABEL_LONG_CLIP;
+        if (lv_label_get_long_mode(s_row_title[i]) != mode) {
+            lv_label_set_long_mode(s_row_title[i], mode);
+        }
+        lv_obj_set_style_bg_opa(s_rows[i], selected ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_text_color(s_row_title[i],
+                                    selected ? lv_color_black() : lv_color_white(), 0);
+        lv_obj_set_style_text_color(s_row_artist[i],
+                                    selected ? lv_color_hex(0x083318) : lv_color_hex(0xB3B3B3), 0);
+    }
+}
+
+static void ui_show_player(const player_status_t *st)
+{
+    obj_set_hidden(s_text, true);
+    obj_set_hidden(s_player, false);
+    for (int i = 0; i < UI_PAGE_SIZE; i++) {
+        obj_set_hidden(s_rows[i], true);
+    }
+
+    ui_set_label_if_changed(s_play_title, st->title[0] ? st->title : "-");
+    ui_set_label_if_changed(s_play_artist, st->artist[0] ? st->artist : "");
+
+    int pct = 0;
+    if (st->duration_s > 0 && st->position_s > 0) {
+        pct = st->position_s * 100 / st->duration_s;
+        if (pct > 100) {
+            pct = 100;
+        }
+    }
+    if (lv_bar_get_value(s_play_bar) != pct) {
+        lv_bar_set_value(s_play_bar, pct, LV_ANIM_OFF);
+    }
+
+    // position_s can be 0 before the decoder reports a timestamp.
+    const int pos = st->position_s > 0 ? st->position_s : 0;
+    const int dur = st->duration_s > 0 ? st->duration_s : 0;
+    char time_buf[32];
+    snprintf(time_buf, sizeof(time_buf), "%d:%02d / %d:%02d",
+             pos / 60, pos % 60, dur / 60, dur % 60);
+    ui_set_label_if_changed(s_play_time, time_buf);
+
+    char meta[64];
+    snprintf(meta, sizeof(meta), "Vol %u%%    %u / %u",
+             (unsigned)st->volume,
+             (unsigned)(st->index + 1), (unsigned)st->count);
+    ui_set_label_if_changed(s_play_meta, meta);
+}
+
 static void ui_refresh_labels(void)
 {
-    char body[160];
-    char status[48];
-    body[0] = '\0';
+    char message[160];
+    char status[64];
+    message[0] = '\0';
     status[0] = '\0';
+
+    size_t rows = 0;
+    int sel = 0;
+    bool list = false;
+    bool player = false;
 
     switch (s_screen) {
     case SCREEN_ID_SETUP:
-        render_setup(body, sizeof(body), status, sizeof(status));
+        render_setup(message, sizeof(message), status, sizeof(status));
         break;
     case SCREEN_ID_LIBRARY:
-        render_library(body, sizeof(body), status, sizeof(status));
+        snapshot_library(&rows, &sel, status, sizeof(status), message, sizeof(message));
+        list = (message[0] == '\0' && rows > 0);
         break;
     case SCREEN_ID_IMPORT:
-        render_import(body, sizeof(body), status, sizeof(status));
+        snapshot_import(&rows, &sel, status, sizeof(status), message, sizeof(message));
+        list = (message[0] == '\0' && rows > 0);
         break;
     case SCREEN_ID_SETTINGS:
-        render_settings(body, sizeof(body), status, sizeof(status));
+        render_settings(message, sizeof(message), status, sizeof(status));
         break;
-    case SCREEN_ID_PLAYER:
-        render_player(body, sizeof(body), status, sizeof(status));
+    case SCREEN_ID_PLAYER: {
+        player_status_t st;
+        player_get_status(&st);
+        if (st.count == 0) {
+            snprintf(message, sizeof(message), "Nothing queued\nPick a track in Library");
+            snprintf(status, sizeof(status), "C: next tab");
+        } else {
+            player = true;
+            ui_show_player(&st);
+            snprintf(status, sizeof(status), "%s    hold C: pause", player_state_name(st.state));
+        }
         break;
     }
+    }
 
-    char title[32];
-    snprintf(title, sizeof(title), "%d/%d %s%s", tab_index(s_screen) + 1, UI_TAB_COUNT,
-             screen_name(s_screen), s_setup_locked ? " (locked)" : "");
-    ui_set_label_if_changed(s_title, title);
-    ui_set_label_if_changed(s_body, body);
+    if (!player) {
+        if (list) {
+            ui_show_rows(rows, sel);
+        } else {
+            ui_show_text(message);
+        }
+    }
+
+    char title[40];
+    snprintf(title, sizeof(title), "%d/%d  %s%s", tab_index(s_screen) + 1, UI_TAB_COUNT,
+             screen_name(s_screen), s_setup_locked ? "  locked" : "");
+    ui_set_label_if_changed(s_header, title);
     ui_set_label_if_changed(s_status, status);
 }
 
@@ -574,9 +719,51 @@ static void handle_list_nav(button_id_t id, int *sel, size_t count,
     }
 }
 
+// The melody writes PCM, so it cannot run on the LVGL task or beside the player.
+static TaskHandle_t s_melody_task;
+
+static void aux_melody_task(void *arg)
+{
+    (void)arg;
+
+    player_status_t st;
+    player_get_status(&st);
+    if (st.state == PLAYER_PLAYING || st.state == PLAYER_PAUSED) {
+        ESP_LOGI(TAG, "stopping playback for AUX melody");
+        player_stop();
+        for (int i = 0; i < 60 && (st.state == PLAYER_PLAYING || st.state == PLAYER_PAUSED); i++) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            player_get_status(&st);
+        }
+        if (st.state == PLAYER_PLAYING || st.state == PLAYER_PAUSED) {
+            ESP_LOGW(TAG, "player still busy, AUX melody skipped");
+            s_melody_task = NULL;
+            vTaskDelete(NULL);
+            return;
+        }
+    }
+
+    audio_output_test_melody();
+    s_melody_task = NULL;
+    vTaskDelete(NULL);
+}
+
+static void start_aux_melody(void)
+{
+    if (s_melody_task) {
+        ESP_LOGW(TAG, "AUX melody already playing");
+        return;
+    }
+    if (xTaskCreate(aux_melody_task, "aux_melody", 4096, NULL, 3, &s_melody_task) != pdPASS) {
+        s_melody_task = NULL;
+        ESP_LOGE(TAG, "AUX melody task failed");
+    }
+}
+
 // Controls:
 //   CENTER       next tab (everywhere)
 //   CENTER_LONG  play/pause (everywhere)
+//   UP held 5 s  AUX test melody (everywhere)
 //   UP/DOWN      move in lists, volume in Player/Settings
 //   RIGHT        action: play (Library), import (Import), logout (Settings),
 //                next track (Player)
@@ -592,6 +779,10 @@ static void handle_button(button_id_t id)
     }
     if (id == BTN_CENTER_LONG) {
         toggle_pause();
+        return;
+    }
+    if (id == BTN_UP_LONG) {
+        start_aux_melody();
         return;
     }
 
@@ -903,27 +1094,105 @@ esp_err_t ui_init(void)
 
     lv_obj_t *scr = lv_display_get_screen_active(disp);
     lv_obj_clean(scr);
-    // OLED look: black background (pixels off), white text (pixels on).
+    // Portrait 240x320: header, flexible body, footer. Black field, white text.
     lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(scr, lv_color_white(), 0);
+    lv_obj_set_style_text_font(scr, ui_font_body(), 0);
+    lv_obj_set_style_pad_all(scr, 6, 0);
+    lv_obj_set_style_pad_row(scr, 4, 0);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scrollable(scr, false);
 
-    s_title = lv_label_create(scr);
-    lv_obj_set_width(s_title, DISPLAY_W);
-    lv_obj_align(s_title, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_label_set_long_mode(s_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    s_header = lv_label_create(scr);
+    lv_obj_set_width(s_header, LV_PCT(100));
+    lv_obj_set_style_text_font(s_header, ui_font_title(), 0);
+    lv_label_set_long_mode(s_header, LV_LABEL_LONG_CLIP);
 
-    // 9 px unscii_8 lines: title y0-8, body y10-54 (5 lines), status y55-63.
-    s_body = lv_label_create(scr);
-    lv_obj_set_width(s_body, DISPLAY_W);
-    lv_obj_set_height(s_body, 45);
-    lv_obj_align(s_body, LV_ALIGN_TOP_LEFT, 0, 10);
-    lv_label_set_long_mode(s_body, LV_LABEL_LONG_CLIP);
+    // Body fills whatever the header and footer leave. Rows are 40 px so six
+    // of them fit the remaining ~250 px without scrolling.
+    lv_obj_t *body = lv_obj_create(scr);
+    lv_obj_set_width(body, LV_PCT(100));
+    lv_obj_set_flex_grow(body, 1);
+    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_opa(body, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(body, 0, 0);
+    lv_obj_set_style_pad_all(body, 0, 0);
+    lv_obj_set_style_pad_row(body, 2, 0);
+    lv_obj_set_scrollbar_mode(body, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scrollable(body, false);
+
+    s_text = lv_label_create(body);
+    lv_obj_set_width(s_text, LV_PCT(100));
+    lv_label_set_long_mode(s_text, LV_LABEL_LONG_WRAP);
+
+    for (int i = 0; i < UI_PAGE_SIZE; i++) {
+        lv_obj_t *row = lv_obj_create(body);
+        s_rows[i] = row;
+        lv_obj_set_width(row, LV_PCT(100));
+        lv_obj_set_height(row, 40);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_bg_color(row, lv_color_hex(UI_ACCENT_HEX), 0);
+        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_radius(row, 6, 0);
+        lv_obj_set_style_pad_hor(row, 6, 0);
+        lv_obj_set_style_pad_ver(row, 2, 0);
+        lv_obj_set_style_pad_row(row, 0, 0);
+        lv_obj_set_scrollbar_mode(row, LV_SCROLLBAR_MODE_OFF);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_hidden(row, true);
+
+        s_row_title[i] = lv_label_create(row);
+        lv_obj_set_width(s_row_title[i], LV_PCT(100));
+        lv_label_set_long_mode(s_row_title[i], LV_LABEL_LONG_CLIP);
+
+        s_row_artist[i] = lv_label_create(row);
+        lv_obj_set_width(s_row_artist[i], LV_PCT(100));
+        lv_label_set_long_mode(s_row_artist[i], LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_color(s_row_artist[i], lv_color_hex(0xB3B3B3), 0);
+    }
+
+    s_player = lv_obj_create(body);
+    lv_obj_set_width(s_player, LV_PCT(100));
+    lv_obj_set_flex_grow(s_player, 1);
+    lv_obj_set_flex_flow(s_player, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_opa(s_player, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(s_player, 0, 0);
+    lv_obj_set_style_pad_all(s_player, 4, 0);
+    lv_obj_set_style_pad_row(s_player, 8, 0);
+    lv_obj_set_scrollbar_mode(s_player, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scrollable(s_player, false);
+    lv_obj_set_hidden(s_player, true);
+
+    s_play_title = lv_label_create(s_player);
+    lv_obj_set_width(s_play_title, LV_PCT(100));
+    lv_obj_set_style_text_font(s_play_title, ui_font_title(), 0);
+    lv_label_set_long_mode(s_play_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+
+    s_play_artist = lv_label_create(s_player);
+    lv_obj_set_width(s_play_artist, LV_PCT(100));
+    lv_label_set_long_mode(s_play_artist, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_style_text_color(s_play_artist, lv_color_hex(0xB3B3B3), 0);
+
+    s_play_bar = lv_bar_create(s_player);
+    lv_obj_set_width(s_play_bar, LV_PCT(100));
+    lv_obj_set_height(s_play_bar, 10);
+    lv_bar_set_range(s_play_bar, 0, 100);
+    lv_bar_set_value(s_play_bar, 0, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(s_play_bar, lv_color_hex(0x333333), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_play_bar, lv_color_hex(UI_ACCENT_HEX), LV_PART_INDICATOR);
+
+    s_play_time = lv_label_create(s_player);
+    lv_obj_set_width(s_play_time, LV_PCT(100));
+
+    s_play_meta = lv_label_create(s_player);
+    lv_obj_set_width(s_play_meta, LV_PCT(100));
+    lv_obj_set_style_text_color(s_play_meta, lv_color_hex(0xB3B3B3), 0);
 
     s_status = lv_label_create(scr);
-    lv_obj_set_width(s_status, DISPLAY_W);
-    lv_obj_align(s_status, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_set_width(s_status, LV_PCT(100));
     lv_label_set_long_mode(s_status, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
     const char *reason = setup_lock_reason();
@@ -958,6 +1227,7 @@ esp_err_t ui_init(void)
     }
 
     ESP_LOGI(TAG, "UI ready on %s. Controls: C=next tab, hold C=play/pause, "
-             "U/D=move/volume, R=action, L=back", screen_name(s_screen));
+             "hold Up 5s=AUX melody, U/D=move/volume, R=action, L=back",
+             screen_name(s_screen));
     return ESP_OK;
 }

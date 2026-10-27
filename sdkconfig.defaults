@@ -43,11 +43,10 @@ CONFIG_PLAYER_SD_MISO_GPIO=12
 CONFIG_PLAYER_SD_SCK_GPIO=14
 CONFIG_PLAYER_SD_CD_GPIO=47
 
-# OLED-friendly LVGL defaults: 1-bit pixel font (anti-aliased fonts break up
-# on a monochrome panel), dark mono theme = white on black
-CONFIG_LV_FONT_UNSCII_8=y
-CONFIG_LV_FONT_DEFAULT_UNSCII_8=y
-# CONFIG_LV_FONT_MONTSERRAT_8 is not set
-# CONFIG_LV_FONT_MONTSERRAT_12 is not set
-# CONFIG_LV_FONT_MONTSERRAT_14 is not set
-CONFIG_LV_USE_THEME_MONO=y
+# HS20HS072RX is a color TFT. Montserrat 16 is the body font, 20 the titles.
+CONFIG_LV_FONT_MONTSERRAT_16=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_DEFAULT_MONTSERRAT_16=y
+# CONFIG_LV_FONT_UNSCII_8 is not set
+# CONFIG_LV_FONT_DEFAULT_UNSCII_8 is not set
+# CONFIG_LV_USE_THEME_MONO is not set

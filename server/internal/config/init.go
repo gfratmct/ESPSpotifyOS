@@ -31,8 +31,8 @@ func NewConfig() *Config {
 		Debug:       os.Getenv("DEBUG") == "true",
 		Secret:      os.Getenv("SECRET"),
 		LogLevel:    os.Getenv("LOG_LEVEL"),
-		DBPath:      getEnv("DB_PATH", "data/espspotify.db"),
-		StoragePath: getEnv("STORAGE_PATH", "storage"),
+		DBPath:      getEnv("DB_PATH", "/data/espspotify.db"),
+		StoragePath: getEnv("STORAGE_PATH", "/storage"),
 	}
 }
 

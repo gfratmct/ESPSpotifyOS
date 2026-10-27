@@ -18,6 +18,7 @@ typedef enum {
     BTN_RIGHT,
     BTN_CENTER,
     BTN_CENTER_LONG,
+    BTN_UP_LONG, // Top held for 5 s: AUX test melody
 } button_id_t;
 
 typedef struct {

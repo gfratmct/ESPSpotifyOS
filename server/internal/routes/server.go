@@ -26,7 +26,15 @@ func NewServer(
 }
 
 func (s *Server) RegisterTrackHandler(handler *handlers.TrackHandler) {
-	tracks := s.r.Group("/tracks", requireAPIKey(s.config.Secret))
+	var tracks *gin.RouterGroup
+
+	// if debug is enabled, allow all requests without API key
+	if s.config.Debug {
+		tracks = s.r.Group("/tracks")
+	} else {
+		tracks = s.r.Group("/tracks", requireAPIKey(s.config.Secret))
+	}
+
 	tracks.GET("", handler.List)
 	tracks.POST("", handler.Import)
 	tracks.GET("/:id/stream", handler.Stream)

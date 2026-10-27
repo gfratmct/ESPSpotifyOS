@@ -65,6 +65,15 @@ void audio_output_amp_enable(bool enable);
  */
 void audio_output_test_tone(void);
 
+/**
+ * @brief Play a short C-major arpeggio on AUX.
+ *
+ * Opens the output if needed. Does not close it when the player already
+ * had it open. Raises a very low software volume for the melody, then
+ * restores it. Not safe to call while the player task is writing PCM.
+ */
+void audio_output_test_melody(void);
+
 // Software volume, 0-100.
 void audio_output_set_volume(uint8_t percent);
 uint8_t audio_output_get_volume(void);

@@ -12,17 +12,21 @@ A personal Spotify companion player. The idea is simple:
 2. **Fetch** - the server finds matching audio for each track via **yt-dlp** and stores it locally.
 3. **Stream** - the server acts as a **media streaming layer**, serving the imported audio back to the ESP32 over Wi-Fi so the device plays your library through AUX / a speaker.
 
-In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32-S3 handles playback and the OLED UI.
+In short: your Spotify library drives the music, the media server handles the heavy lifting (downloading and streaming), and the ESP32-S3 handles playback and the TFT UI.
 
 ## Current State
 
-The project targets a **custom ESP32-S3 PCB** with SSD1306 OLED, five switches, SPI microSD, and a PCM5102 AUX DAC.
+The project targets a **custom ESP32-S3 PCB** with an HS20HS072RX TFT (ST7789T3, 240×320), five switches, SPI microSD, and a PCM5102 AUX DAC.
 
 ### Hardware pins
 
-I2C Display (SSD1306 128x64):
-- SDA: IO6
+SPI Display (HS20HS072RX, ST7789T3, portrait 240×320):
+- CS:  IO10
+- RS:  IO9
 - SCL: IO8
+- SDA: IO6
+- RST: IO5
+- PWM: IO7 (backlight)
 
 SPI SD Card:
 - MOSI: IO11
@@ -35,8 +39,8 @@ Switches:
 - SWC (Center): IO4
 - SWB (Bottom): IO15
 - SWT (Top):    IO16
-- SWL (Left):   IO18
-- SWR (Right):  IO17
+- SWL (Left):   IO17
+- SWR (Right):  IO18
 
 AUX (PCM5102 I2S):
 - SCK (MCLK): IO42
@@ -47,11 +51,11 @@ AUX (PCM5102 I2S):
 
 ### What works
 
-- **Display / UI**: SSD1306 over I2C + LVGL 9. Five tabs cycled with a **short press on Center**: Setup, Library, Import, Settings, Player.
+- **Display / UI**: HS20HS072RX (ST7789T3, SPI, 240×320) + LVGL 9. Five tabs cycled with a **short press on Center**: Setup, Library, Import, Settings, Player.
 - **Switches**: debounced GPIO driver (short vs long Center).
 - **Wi-Fi**: station-mode auto-connect with reconnect handling. Credentials are seeded from Kconfig on first boot and persisted in NVS.
-- **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. Wi-Fi SSID/password entry stays in the browser (`settings.html`) — not on the OLED.
-- **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh. OLED Setup tab shows the `/submit` URL when logged out.
+- **Wi-Fi provisioning AP**: if the device cannot connect, it starts a provisioning access point (`ESPSpotifyOS-Setup` by default) and serves a settings page to change the Wi-Fi network and restart. Wi-Fi SSID/password entry stays in the browser (`settings.html`) — not on the TFT.
+- **Spotify login**: embedded web server on port `8080` serves a login page; full OAuth Authorization Code flow with token persistence and automatic token refresh. The Setup tab shows the `/submit` URL when logged out.
 - **Library tab**: media-server tracks + SD-cached files; Right plays the selection over AUX.
 - **Import tab**: Spotify liked tracks; Right queues `transfer_manager_import`.
 - **Player tab**: now-playing, play/pause, next/prev, volume.
@@ -64,7 +68,7 @@ AUX (PCM5102 I2S):
 ### Out of scope (for now)
 
 - **Bluetooth audio**: ESP32-S3 has BLE only (no Classic BT / A2DP). Pairing to BT speakers/headphones is deferred.
-- On-device Wi-Fi password typing on the OLED.
+- On-device Wi-Fi password typing on the TFT.
 - Album art / seek polish.
 
 ### What's next
@@ -78,7 +82,7 @@ AUX (PCM5102 I2S):
 ## Hardware Requirements
 
 - **Board**: ESP32-S3 custom PCB (or compatible pinout)
-- **Display**: SSD1306 OLED 128x64 (I2C)
+- **Display**: HS20HS072RX 2.4" TFT, ST7789T3, 240×320 portrait (4-wire SPI)
 - **Audio**: PCM5102 (or compatible) I2S DAC on the AUX connector
 - **Input**: five tactile switches (Up / Down / Left / Right / Center)
 - **Optional**: microSD card for offline cache
@@ -102,11 +106,11 @@ ESPSpotifyOS/
 │   │   ├── device_state.c/.h       # wifi creds + screen/tab (NVS "device")
 │   │   └── state.c/.h              # state_init() + legacy blob migration
 │   ├── display/
-│   │   └── display.c/.h            # SSD1306 + LVGL port
+│   │   └── display.c/.h            # ST7789 + LVGL port
 │   ├── input/
 │   │   └── buttons.c/.h            # five-switch debounce driver
 │   ├── ui/
-│   │   └── ui.c/.h                 # tab controller + OLED screens
+│   │   └── ui.c/.h                 # tab controller + TFT screens
 │   ├── net/
 │   │   ├── http_client.c/.h        # HTTP client wrapper (GET/POST/stream)
 │   │   ├── media_client.c/.h       # companion media server client
@@ -168,12 +172,13 @@ idf.py -p <PORT> flash monitor
 ```
 *(To exit the monitor, press `Ctrl + ]`)*
 
-### OLED controls (quick reference)
+### Display controls (quick reference)
 
 | Input | Action |
 |-------|--------|
 | Center | Next tab (Setup → Library → Import → Settings → Player). Blocked while Wi-Fi or Spotify login is missing |
 | Hold Center | Play / pause (any tab) |
+| Hold Top (5 s) | Play a short AUX test melody (stops playback first) |
 | Up / Down | Move in lists; volume in Player and Settings |
 | Right | Action: play (Library), import (Import), logout (Settings, press twice), next track (Player) |
 | Left | Previous page (lists), cancel (Settings), previous track (Player) |
@@ -184,7 +189,7 @@ idf.py -p <PORT> flash monitor
 
 On boot the device tries to join the configured network. If that fails, it
 starts a provisioning access point instead and shows the AP name plus the setup
-URL on the OLED:
+URL on the display:
 
 1. Join the `ESPSpotifyOS-Setup` access point (password from
    `CONFIG_PLAYER_AP_PASSWORD`, default `spotify-setup`).

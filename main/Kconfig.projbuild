@@ -74,7 +74,7 @@ menu "Player Configuration"
         string "Device display name"
         default "ESPSpotifyOS"
         help
-            Friendly name shown on the OLED and used in logs.
+            Friendly name shown on the display and used in logs.
 
     config PLAYER_SD_CS_GPIO
         int "SD card chip select GPIO"

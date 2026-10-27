@@ -40,12 +40,8 @@
 #define DAC_WRITE_TIMEOUT 1000
 #endif
 
-#if defined(CONFIG_PLAYER_TEST_TONE)
-#define TONE_HZ        440
-#define TONE_DURATION_MS 1000
 #define TONE_AMPLITUDE (int16_t)(32767 * 0.3)
-#define TONE_CHUNK_FRAMES 1024
-#endif
+#define TONE_CHUNK_FRAMES 256
 
 typedef enum {
     OUTPUT_NONE = 0,
@@ -364,31 +360,73 @@ esp_err_t audio_output_write(int16_t *samples, size_t sample_count)
     }
 }
 
-#if defined(CONFIG_PLAYER_TEST_TONE)
-
-void audio_output_test_tone(void)
+// freq_hz == 0 writes silence, used as the gap between melody notes.
+static void play_sine(int freq_hz, int duration_ms)
 {
-    if (audio_output_open() != ESP_OK) return;
+    static int16_t buf[TONE_CHUNK_FRAMES * AUDIO_CHANNELS];
 
-    size_t total_frames = (size_t)AUDIO_SAMPLE_RATE * TONE_DURATION_MS / 1000;
-    int16_t buf[TONE_CHUNK_FRAMES * AUDIO_CHANNELS];
-
-    audio_output_amp_enable(true);
-    ESP_LOGI(TAG, "test tone: %d Hz for %d ms", TONE_HZ, TONE_DURATION_MS);
-
+    size_t total_frames = (size_t)AUDIO_SAMPLE_RATE * (size_t)duration_ms / 1000;
     size_t frame = 0;
     while (frame < total_frames) {
         size_t n = total_frames - frame;
-        if (n > TONE_CHUNK_FRAMES) n = TONE_CHUNK_FRAMES;
+        if (n > TONE_CHUNK_FRAMES) {
+            n = TONE_CHUNK_FRAMES;
+        }
         for (size_t i = 0; i < n; i++) {
             double t = (double)(frame + i) / AUDIO_SAMPLE_RATE;
-            int16_t v = (int16_t)(TONE_AMPLITUDE * sin(2.0 * M_PI * TONE_HZ * t));
+            int16_t v = 0;
+            if (freq_hz > 0) {
+                v = (int16_t)(TONE_AMPLITUDE * sin(2.0 * M_PI * freq_hz * t));
+            }
             buf[2 * i] = v;
             buf[2 * i + 1] = v;
         }
         audio_output_write(buf, n * AUDIO_CHANNELS);
         frame += n;
     }
+}
+
+void audio_output_test_melody(void)
+{
+    // Leave the backend open when the player already owns it. Closing it
+    // would make the next track silent: the player opens the DAC only once.
+    const bool was_ready = audio_output_ready();
+    if (audio_output_open() != ESP_OK) {
+        ESP_LOGE(TAG, "AUX melody: output open failed");
+        return;
+    }
+
+    const uint8_t saved_volume = audio_output_get_volume();
+    if (saved_volume < 50) {
+        audio_output_set_volume(70);
+    }
+
+    // C major arpeggio (C5 E5 G5 C6). Short enough to hear that AUX is alive.
+    static const int notes_hz[] = { 523, 659, 784, 1047 };
+    audio_output_amp_enable(true);
+    ESP_LOGI(TAG, "AUX melody");
+    for (size_t i = 0; i < sizeof(notes_hz) / sizeof(notes_hz[0]); i++) {
+        play_sine(notes_hz[i], 280);
+        play_sine(0, 40);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(200));
+    audio_output_amp_enable(false);
+    audio_output_set_volume(saved_volume);
+    if (!was_ready) {
+        audio_output_close();
+    }
+}
+
+#if defined(CONFIG_PLAYER_TEST_TONE)
+
+void audio_output_test_tone(void)
+{
+    if (audio_output_open() != ESP_OK) return;
+
+    audio_output_amp_enable(true);
+    ESP_LOGI(TAG, "test tone: 440 Hz for 1000 ms");
+    play_sine(440, 1000);
 
     // Let the DMA drain before muting so the tone tail is not clipped.
     vTaskDelay(pdMS_TO_TICKS(400));

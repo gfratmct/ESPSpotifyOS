@@ -17,6 +17,9 @@ func main() {
 
 	cfg := config.NewConfig()
 
+	// debug DEBUG mode state
+	logger.Printf("debug mode: %v", cfg.Debug)
+
 	if cfg.Secret == "" {
 		logger.Println("warning: SECRET is not set, API key authentication is disabled")
 	}
