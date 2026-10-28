@@ -8,17 +8,19 @@ export type Track = {
   encoding: string;
 };
 
-type TrackPage = {
+export type TrackPage = {
   tracks: Track[];
   total: number;
 };
+
+export const TRACKS_PAGE_SIZE = 50;
 
 export type ServerSettings = {
   baseUrl: string;
   apiKey: string;
 };
 
-function requestHeaders(apiKey: string): Record<string, string> {
+export function requestHeaders(apiKey: string): Record<string, string> {
   return apiKey ? { 'X-API-Key': apiKey } : {};
 }
 
@@ -44,13 +46,13 @@ function isTrack(value: unknown): value is Track {
   );
 }
 
-async function requestTrackPage(
+export async function fetchTrackPage(
   baseUrl: string,
   apiKey: string,
   offset: number
 ): Promise<TrackPage> {
   const response = await fetch(
-    `${baseUrl.replace(/\/+$/, '')}/tracks?limit=100&offset=${offset}`,
+    `${baseUrl.replace(/\/+$/, '')}/tracks?limit=${TRACKS_PAGE_SIZE}&offset=${offset}`,
     { headers: requestHeaders(apiKey) }
   );
   if (!response.ok) {
@@ -71,24 +73,6 @@ async function requestTrackPage(
     throw new Error('The service returned an invalid track list.');
   }
   return { tracks: result.tracks, total: result.total };
-}
-
-export async function fetchTracks(settings: ServerSettings): Promise<Track[]> {
-  if (!settings.baseUrl) {
-    return [];
-  }
-
-  const tracks: Track[] = [];
-  let total = 0;
-  do {
-    const page = await requestTrackPage(settings.baseUrl, settings.apiKey, tracks.length);
-    tracks.push(...page.tracks);
-    total = page.total;
-    if (page.tracks.length === 0) {
-      break;
-    }
-  } while (tracks.length < total);
-  return tracks;
 }
 
 export async function importTrackByQuery(

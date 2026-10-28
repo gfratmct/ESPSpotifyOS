@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { getStoredValue, removeStoredValue, setStoredValue } from './key-value-storage';
 
 export type SpotifyTrack = {
   id: string;
@@ -26,9 +26,17 @@ export type SpotifyTokenData = {
   issuedAt?: number;
 };
 
+export type SpotifyAuthAttempt = {
+  state: string;
+  codeVerifier: string;
+  clientId: string;
+  redirectUri: string;
+};
+
 const clientIdKey = 'espspotify.spotifyClientId';
 const redirectUriKey = 'espspotify.spotifyRedirectUri';
 const tokenKey = 'espspotify.spotifyToken';
+const authAttemptKey = 'espspotify.spotifyAuthAttempt';
 const apiBaseUrl = 'https://api.spotify.com/v1';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -51,8 +59,8 @@ function isSpotifyTokenData(value: unknown): value is SpotifyTokenData {
 
 export async function loadSpotifySettings(): Promise<{ clientId: string; redirectUri: string }> {
   const [clientId, redirectUri] = await Promise.all([
-    SecureStore.getItemAsync(clientIdKey),
-    SecureStore.getItemAsync(redirectUriKey),
+    getStoredValue(clientIdKey),
+    getStoredValue(redirectUriKey),
   ]);
   return { clientId: clientId ?? '', redirectUri: redirectUri ?? '' };
 }
@@ -62,13 +70,13 @@ export async function saveSpotifySettings(
   redirectUri: string
 ): Promise<void> {
   await Promise.all([
-    SecureStore.setItemAsync(clientIdKey, clientId),
-    SecureStore.setItemAsync(redirectUriKey, redirectUri),
+    setStoredValue(clientIdKey, clientId),
+    setStoredValue(redirectUriKey, redirectUri),
   ]);
 }
 
 export async function loadSpotifyToken(): Promise<SpotifyTokenData | null> {
-  const value = await SecureStore.getItemAsync(tokenKey);
+  const value = await getStoredValue(tokenKey);
   if (!value) {
     return null;
   }
@@ -80,11 +88,43 @@ export async function loadSpotifyToken(): Promise<SpotifyTokenData | null> {
 }
 
 export async function saveSpotifyToken(token: SpotifyTokenData): Promise<void> {
-  await SecureStore.setItemAsync(tokenKey, JSON.stringify(token));
+  await setStoredValue(tokenKey, JSON.stringify(token));
+}
+
+export async function loadSpotifyAuthAttempt(): Promise<SpotifyAuthAttempt | null> {
+  const value = await getStoredValue(authAttemptKey);
+  if (!value) {
+    return null;
+  }
+  const parsed: unknown = JSON.parse(value);
+  if (
+    !isRecord(parsed) ||
+    typeof parsed.state !== 'string' ||
+    typeof parsed.codeVerifier !== 'string' ||
+    typeof parsed.clientId !== 'string' ||
+    typeof parsed.redirectUri !== 'string'
+  ) {
+    throw new Error('Stored Spotify sign-in attempt has an invalid format. Start sign-in again.');
+  }
+
+  return {
+    state: parsed.state,
+    codeVerifier: parsed.codeVerifier,
+    clientId: parsed.clientId,
+    redirectUri: parsed.redirectUri,
+  };
+}
+
+export async function saveSpotifyAuthAttempt(attempt: SpotifyAuthAttempt): Promise<void> {
+  await setStoredValue(authAttemptKey, JSON.stringify(attempt));
+}
+
+export async function clearSpotifyAuthAttempt(): Promise<void> {
+  await removeStoredValue(authAttemptKey);
 }
 
 export async function clearSpotifyToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(tokenKey);
+  await Promise.all([removeStoredValue(tokenKey), clearSpotifyAuthAttempt()]);
 }
 
 function readTrack(value: unknown): SpotifyTrack | null {

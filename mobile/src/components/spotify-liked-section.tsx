@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ActionButton, AppPage, Notice, SectionHeading } from '@/components/music-ui';
+import { ActionButton, FormField, Notice } from '@/components/music-ui';
 import { usePlayer } from '@/context/player-context';
 import { useSpotify } from '@/context/spotify-context';
 import { importTrackByQuery } from '@/services/tracks-api';
@@ -17,7 +17,7 @@ const colors = {
   danger: '#FF8B81',
 };
 
-export default function SpotifyScreen() {
+export default function SpotifyLikedSection() {
   const {
     spotifyClientId,
     spotifyRedirectUri,
@@ -32,6 +32,7 @@ export default function SpotifyScreen() {
     likedLoading,
     likedError,
     connectSpotify,
+    applySpotifyCallback,
     disconnectSpotify,
     refreshLikedTracks,
     loadMoreLikedTracks,
@@ -41,7 +42,20 @@ export default function SpotifyScreen() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importingTrackId, setImportingTrackId] = useState<string | null>(null);
+  const [callbackInput, setCallbackInput] = useState('');
+  const [applyingCallback, setApplyingCallback] = useState(false);
   const autoLoaded = useRef(false);
+
+  async function applyCallback() {
+    setApplyingCallback(true);
+    try {
+      if (await applySpotifyCallback(callbackInput)) {
+        setCallbackInput('');
+      }
+    } finally {
+      setApplyingCallback(false);
+    }
+  }
 
   async function importTrack(track: SpotifyTrack) {
     if (importingTrackId !== null) {
@@ -78,10 +92,7 @@ export default function SpotifyScreen() {
   }, [refreshLikedTracks, spotifyConnected]);
 
   return (
-    <AppPage
-      eyebrow="Official Spotify API"
-      title="Liked Songs"
-      subtitle="Saved Spotify tracks. Tap to open in Spotify; long-press to import to your media library.">
+    <>
       {!spotifyConnected ? (
         <View style={styles.connectCard}>
           <Text style={styles.connectTitle}>Connect your Spotify account</Text>
@@ -117,6 +128,35 @@ export default function SpotifyScreen() {
                     : 'Connect Spotify'
               }
               onPress={() => void connectSpotify()}
+            />
+          </View>
+          <Text style={styles.callbackHelp}>
+            If Spotify redirects without returning to this app, paste the full callback URL or
+            its authorization code below. Start Connect Spotify first; the PKCE verifier is
+            {Platform.OS === 'web'
+              ? ' kept in this browser session for the exchange.'
+              : ' stored securely on this device for the exchange.'}
+          </Text>
+          <View style={styles.callbackField}>
+            <FormField
+              label="Spotify callback URL or code"
+              onChangeText={setCallbackInput}
+              placeholder="https://your-domain.example/spotify-callback?code=…&state=…"
+              secureTextEntry
+              value={callbackInput}
+            />
+          </View>
+          <View style={styles.connectButton}>
+            <ActionButton
+              disabled={
+                !spotifyReady ||
+                !spotifyClientId ||
+                !spotifyRedirectUri ||
+                !callbackInput.trim() ||
+                applyingCallback
+              }
+              label={applyingCallback ? 'Applying callback…' : 'Apply callback'}
+              onPress={() => void applyCallback()}
             />
           </View>
         </View>
@@ -163,15 +203,10 @@ export default function SpotifyScreen() {
               />
             </View>
           ) : null}
-          <SectionHeading>From Spotify</SectionHeading>
-          <Text style={styles.footerText}>
-            Metadata comes from Spotify’s Web API. Select a track to open it in Spotify, or
-            long-press it to search for and import it into your media library.
-          </Text>
         </>
       )}
       {spotifyError ? <Notice error>{spotifyError}</Notice> : null}
-    </AppPage>
+    </>
   );
 }
 
@@ -243,6 +278,15 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     marginTop: 18,
+  },
+  callbackHelp: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 18,
+  },
+  callbackField: {
+    marginTop: 14,
   },
   headerActions: {
     flexDirection: 'row',
@@ -319,10 +363,5 @@ const styles = StyleSheet.create({
   },
   moreButton: {
     marginTop: 14,
-  },
-  footerText: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

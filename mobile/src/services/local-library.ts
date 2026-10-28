@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
+import { getStoredValue, setStoredValue } from './key-value-storage';
 import type { ServerSettings, Track } from './tracks-api';
 
 export type SavedTrack = Track & {
@@ -21,20 +22,24 @@ function libraryFileUri(): string {
 
 export async function loadServerSettings(): Promise<ServerSettings> {
   const [baseUrl, apiKey] = await Promise.all([
-    SecureStore.getItemAsync(settingsUrlKey),
-    SecureStore.getItemAsync(settingsApiKey),
+    getStoredValue(settingsUrlKey),
+    getStoredValue(settingsApiKey),
   ]);
   return { baseUrl: baseUrl ?? '', apiKey: apiKey ?? '' };
 }
 
 export async function saveServerSettings(settings: ServerSettings): Promise<void> {
   await Promise.all([
-    SecureStore.setItemAsync(settingsUrlKey, settings.baseUrl),
-    SecureStore.setItemAsync(settingsApiKey, settings.apiKey),
+    setStoredValue(settingsUrlKey, settings.baseUrl),
+    setStoredValue(settingsApiKey, settings.apiKey),
   ]);
 }
 
 export async function loadSavedTracks(): Promise<SavedTrack[]> {
+  if (Platform.OS === 'web') {
+    return [];
+  }
+
   const fileUri = libraryFileUri();
   const info = await FileSystem.getInfoAsync(fileUri);
   if (!info.exists) {
@@ -70,6 +75,9 @@ export async function loadSavedTracks(): Promise<SavedTrack[]> {
 }
 
 export async function saveSavedTracks(tracks: SavedTrack[]): Promise<void> {
+  if (Platform.OS === 'web') {
+    throw new Error('Offline track storage is not available in a web browser.');
+  }
   await FileSystem.writeAsStringAsync(libraryFileUri(), JSON.stringify(tracks));
 }
 
@@ -99,6 +107,9 @@ export async function downloadTrack(
   baseUrl: string,
   apiKey: string
 ): Promise<SavedTrack> {
+  if (Platform.OS === 'web') {
+    throw new Error('Offline track downloads are not available in a web browser.');
+  }
   if (!FileSystem.documentDirectory) {
     throw new Error('The app document directory is unavailable.');
   }

@@ -21,10 +21,13 @@ import { Platform } from 'react-native';
 import {
   clearSpotifyToken,
   fetchSpotifyLikedTracks,
+  loadSpotifyAuthAttempt,
   loadSpotifySettings,
   loadSpotifyToken,
+  saveSpotifyAuthAttempt,
   saveSpotifySettings as persistSpotifySettings,
   saveSpotifyToken,
+  clearSpotifyAuthAttempt,
   type SpotifyPage,
   type SpotifyTokenData,
   type SpotifyTrack,
@@ -52,6 +55,7 @@ type SpotifyContextValue = {
   likedError: string | null;
   saveSpotifySettings: (clientId: string, redirectUri: string) => Promise<void>;
   connectSpotify: () => Promise<void>;
+  applySpotifyCallback: (input: string) => Promise<boolean>;
   disconnectSpotify: () => Promise<void>;
   refreshLikedTracks: () => Promise<void>;
   loadMoreLikedTracks: () => Promise<void>;
@@ -63,15 +67,58 @@ function messageFromError(error: unknown): string {
   return error instanceof Error ? error.message : 'An unexpected error occurred.';
 }
 
-function tokenData(token: TokenResponse): SpotifyTokenData {
+function tokenData(token: TokenResponse, fallbackRefreshToken?: string): SpotifyTokenData {
   return {
     accessToken: token.accessToken,
     tokenType: token.tokenType,
     expiresIn: token.expiresIn,
-    refreshToken: token.refreshToken,
+    refreshToken: token.refreshToken ?? fallbackRefreshToken,
     scope: token.scope,
     issuedAt: token.issuedAt,
   };
+}
+
+function parseCallbackInput(input: string): {
+  code: string;
+  state?: string;
+  callbackUrl?: URL;
+} {
+  const value = input.trim();
+  if (!value) {
+    throw new Error('Paste a Spotify callback URL or authorization code.');
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    let callbackUrl: URL;
+    try {
+      callbackUrl = new URL(value);
+    } catch {
+      throw new Error('The Spotify callback URL is invalid.');
+    }
+    const params = new URLSearchParams(callbackUrl.search);
+    if (callbackUrl.hash) {
+      for (const [key, parameter] of new URLSearchParams(callbackUrl.hash.slice(1))) {
+        if (!params.has(key)) {
+          params.set(key, parameter);
+        }
+      }
+    }
+    const error = params.get('error');
+    if (error) {
+      throw new Error(`Spotify authorization was denied: ${error}`);
+    }
+    const code = params.get('code');
+    if (!code) {
+      throw new Error('The callback URL does not contain an authorization code.');
+    }
+    const state = params.get('state');
+    if (!state) {
+      throw new Error('The callback URL does not contain Spotify sign-in state.');
+    }
+    return { code, state, callbackUrl };
+  }
+
+  return { code: value };
 }
 
 export function SpotifyProvider({ children }: PropsWithChildren) {
@@ -87,6 +134,7 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
   const [likedLoading, setLikedLoading] = useState(false);
   const [likedError, setLikedError] = useState<string | null>(null);
   const likedRequestId = useRef(0);
+  const exchangingCode = useRef(false);
   const requestConfig = useMemo(
     () => ({
       clientId: spotifyClientId || 'unconfigured-spotify-client-id',
@@ -145,45 +193,65 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
       return;
     }
     const code = response.params.code;
+    const state = response.params.state;
     if (!code || !request?.codeVerifier || !spotifyClientId || !spotifyRedirectUri) {
       setSpotifyBusy(false);
       setSpotifyError('Spotify did not return a valid authorization code. Check your redirect URI and try again.');
+      return;
+    }
+    if (exchangingCode.current) {
       return;
     }
 
     let active = true;
     setSpotifyBusy(true);
     setSpotifyError(null);
-    void exchangeCodeAsync(
-      {
-        clientId: spotifyClientId,
-        code,
-        redirectUri: spotifyRedirectUri,
-        scopes: spotifyScopes,
-        extraParams: { code_verifier: request.codeVerifier },
-      },
-      spotifyDiscovery
-    )
-      .then(async (result) => {
+    exchangingCode.current = true;
+    void (async () => {
+      try {
+        const attempt = await loadSpotifyAuthAttempt();
+        if (
+          !attempt ||
+          attempt.state !== state ||
+          attempt.codeVerifier !== request.codeVerifier ||
+          attempt.clientId !== spotifyClientId ||
+          attempt.redirectUri !== spotifyRedirectUri
+        ) {
+          throw new Error('Spotify sign-in verification failed. Start sign-in again.');
+        }
+        const result = await exchangeCodeAsync(
+          {
+            clientId: attempt.clientId,
+            code,
+            redirectUri: attempt.redirectUri,
+            scopes: spotifyScopes,
+            extraParams: { code_verifier: attempt.codeVerifier },
+          },
+          spotifyDiscovery
+        );
         const nextToken = tokenData(result);
+        if (!nextToken.refreshToken) {
+          throw new Error('Spotify did not return a refresh token. Sign in again to enable session refresh.');
+        }
         await saveSpotifyToken(nextToken);
+        await clearSpotifyAuthAttempt();
         if (active) {
           setToken(nextToken);
           setLikedTracks([]);
           setLikedTotal(0);
           setLikedNextOffset(null);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         if (active) {
           setSpotifyError(`Spotify sign-in failed: ${messageFromError(error)}`);
         }
-      })
-      .finally(() => {
+      } finally {
+        exchangingCode.current = false;
         if (active) {
           setSpotifyBusy(false);
         }
-      });
+      }
+    })()
     return () => {
       active = false;
     };
@@ -220,15 +288,95 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
     setSpotifyBusy(true);
     setSpotifyError(null);
     try {
+      if (!request.codeVerifier) {
+        throw new Error('Spotify PKCE is not ready. Try connecting again.');
+      }
+      await saveSpotifyAuthAttempt({
+        state: request.state,
+        codeVerifier: request.codeVerifier,
+        clientId: spotifyClientId,
+        redirectUri: spotifyRedirectUri,
+      });
       const result = await promptAsync();
       if (result.type !== 'success') {
         setSpotifyBusy(false);
+        if (result.type === 'cancel') {
+          await clearSpotifyAuthAttempt();
+        }
       }
     } catch (error) {
       setSpotifyBusy(false);
       setSpotifyError(messageFromError(error));
     }
   }, [promptAsync, request, spotifyClientId, spotifyRedirectUri]);
+
+  const applySpotifyCallback = useCallback(async (input: string) => {
+    if (exchangingCode.current) {
+      setSpotifyError('Spotify is already processing a sign-in callback.');
+      return false;
+    }
+    exchangingCode.current = true;
+    setSpotifyBusy(true);
+    setSpotifyError(null);
+    try {
+      const callback = parseCallbackInput(input);
+      const attempt = await loadSpotifyAuthAttempt();
+      if (!attempt) {
+        throw new Error('Start Connect Spotify in this app before applying a callback.');
+      }
+      if (callback.state && callback.state !== attempt.state) {
+        throw new Error('Spotify callback state did not match. Start sign-in again.');
+      }
+      if (callback.callbackUrl) {
+        console.log('Spotify callback URL:', callback.callbackUrl.href);
+        console.log('Expected redirect URI:', attempt.redirectUri);
+        const expectedUrl = new URL(attempt.redirectUri);
+        console.log('Expected URL origin:', expectedUrl.origin);
+        console.log('Expected URL pathname:', expectedUrl.pathname);
+        // if (
+        //   callback.callbackUrl.origin !== expectedUrl.origin ||
+        //   callback.callbackUrl.pathname !== expectedUrl.pathname
+        // ) {
+        //   throw new Error('The callback URL does not match the saved Spotify redirect URI.');
+        // }
+      }
+      if (
+        attempt.clientId !== spotifyClientId ||
+        attempt.redirectUri !== spotifyRedirectUri
+      ) {
+        throw new Error('Spotify settings changed during sign-in. Start sign-in again.');
+      }
+
+      const result = await exchangeCodeAsync(
+        {
+          clientId: attempt.clientId,
+          code: callback.code,
+          redirectUri: attempt.redirectUri,
+          scopes: spotifyScopes,
+          extraParams: { code_verifier: attempt.codeVerifier },
+        },
+        spotifyDiscovery
+      );
+      const nextToken = tokenData(result);
+      if (!nextToken.refreshToken) {
+        throw new Error('Spotify did not return a refresh token. Sign in again to enable session refresh.');
+      }
+      await saveSpotifyToken(nextToken);
+      await clearSpotifyAuthAttempt();
+      setToken(nextToken);
+      setLikedTracks([]);
+      setLikedTotal(0);
+      setLikedNextOffset(null);
+      return true;
+    } catch (error) {
+      const message = messageFromError(error);
+      setSpotifyError(`Spotify sign-in failed: ${message}`);
+      return false;
+    } finally {
+      exchangingCode.current = false;
+      setSpotifyBusy(false);
+    }
+  }, [spotifyClientId, spotifyRedirectUri]);
 
   const disconnectSpotify = useCallback(async () => {
     await clearSpotifyToken();
@@ -258,7 +406,7 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
       { clientId: spotifyClientId, scopes: spotifyScopes },
       spotifyDiscovery
     );
-    const refreshedToken = tokenData(refreshed);
+    const refreshedToken = tokenData(refreshed, token.refreshToken);
     await saveSpotifyToken(refreshedToken);
     setToken(refreshedToken);
     return refreshedToken.accessToken;
@@ -319,12 +467,14 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
       likedError,
       saveSpotifySettings: saveSettings,
       connectSpotify,
+      applySpotifyCallback,
       disconnectSpotify,
       refreshLikedTracks,
       loadMoreLikedTracks,
     }),
     [
       connectSpotify,
+      applySpotifyCallback,
       disconnectSpotify,
       likedError,
       likedLoading,

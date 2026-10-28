@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton, AppPage, Notice, SectionHeading, TrackRow } from '@/components/music-ui';
 import { usePlayer } from '@/context/player-context';
@@ -18,6 +18,7 @@ export default function HomeScreen() {
     settings,
     storageError,
     tracks,
+    tracksTotal,
     tracksLoading,
     tracksError,
     refreshTracks,
@@ -28,12 +29,16 @@ export default function HomeScreen() {
     <AppPage
       eyebrow="Your music, your way"
       title="Listen local."
-      subtitle="Stream from your library. Keep every played track ready for offline listening.">
+      subtitle={
+        Platform.OS === 'web'
+          ? 'Stream directly from your library in the browser.'
+          : 'Stream from your library. Keep every played track ready for offline listening.'
+      }>
       <View style={styles.heroCard}>
         <Text style={styles.heroLabel}>YOUR SERVICE LIBRARY</Text>
-        <Text style={styles.heroCount}>{tracks.length}</Text>
+        <Text style={styles.heroCount}>{tracksTotal}</Text>
         <Text style={styles.heroCaption}>
-          {tracks.length === 1 ? 'track ready to play' : 'tracks ready to play'}
+          {tracksTotal === 1 ? 'track ready to play' : 'tracks ready to play'}
         </Text>
         <View style={styles.heroActions}>
           <Pressable
@@ -42,7 +47,9 @@ export default function HomeScreen() {
             style={styles.heroLink}>
             <Text style={styles.heroLinkText}>Explore tracks  ›</Text>
           </Pressable>
-          <Text style={styles.heroOffline}>{savedTracks.length} saved offline</Text>
+          <Text style={styles.heroOffline}>
+            {Platform.OS === 'web' ? 'Offline in mobile app' : `${savedTracks.length} saved offline`}
+          </Text>
         </View>
         <View style={styles.heroAccent} />
       </View>

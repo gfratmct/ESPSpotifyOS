@@ -1,12 +1,22 @@
 import { useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { AppPage, Notice, SearchField, SectionHeading, TrackRow } from '@/components/music-ui';
 import { usePlayer } from '@/context/player-context';
 
 export default function ExploreScreen() {
   const [query, setQuery] = useState('');
-  const { tracks, tracksLoading, tracksError, settings, refreshTracks, savedTracks } = usePlayer();
+  const {
+    tracks,
+    tracksTotal,
+    hasMoreTracks,
+    tracksLoading,
+    tracksError,
+    settings,
+    refreshTracks,
+    loadMoreTracks,
+    savedTracks,
+  } = usePlayer();
   const filteredTracks = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
     if (!search) {
@@ -23,10 +33,20 @@ export default function ExploreScreen() {
     <AppPage
       eyebrow="Discover"
       title="Explore"
-      subtitle="Search and play any track currently available in your service library.">
+      onScroll={({ nativeEvent }) => {
+        const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+        if (
+          !query &&
+          hasMoreTracks &&
+          !tracksLoading &&
+          contentOffset.y + layoutMeasurement.height >= contentSize.height - 280
+        ) {
+          void loadMoreTracks();
+        }
+      }}>
       <SearchField value={query} onChangeText={setQuery} />
       <SectionHeading>
-        {query ? `${filteredTracks.length} results` : `${tracks.length} available tracks`}
+        {query ? `${filteredTracks.length} results` : `${tracksTotal} tracks`}
       </SectionHeading>
 
       {tracksLoading ? <Notice>Loading tracks from your service…</Notice> : null}
@@ -50,6 +70,21 @@ export default function ExploreScreen() {
           )}
         />
       ))}
+      {query && hasMoreTracks ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Load more tracks"
+          disabled={tracksLoading}
+          onPress={() => void loadMoreTracks()}
+          style={{
+            alignSelf: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            opacity: tracksLoading ? 0.5 : 1,
+          }}>
+          <Text style={{ color: '#B7F36B', fontSize: 24 }}>↓</Text>
+        </Pressable>
+      ) : null}
       {!tracksLoading && settings.baseUrl && !tracksError && filteredTracks.length === 0 ? (
         <Notice>
           {query

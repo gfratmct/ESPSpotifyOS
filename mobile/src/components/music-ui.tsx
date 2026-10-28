@@ -6,6 +6,7 @@ import {
   Text,
   TextInput,
   View,
+  type ScrollViewProps,
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,11 +30,15 @@ export function AppPage({
   eyebrow,
   title,
   subtitle,
+  showMiniPlayer = true,
+  onScroll,
   children,
 }: {
   eyebrow: string;
   title: string;
   subtitle?: string;
+  showMiniPlayer?: boolean;
+  onScroll?: ScrollViewProps['onScroll'];
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -44,8 +49,10 @@ export function AppPage({
         style={styles.page}
         contentContainerStyle={[
           styles.pageContent,
-          { paddingBottom: 24 + insets.bottom + 72 },
+          { paddingBottom: 24 + insets.bottom },
         ]}
+        onScroll={onScroll}
+        scrollEventThrottle={300}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text>
@@ -53,7 +60,7 @@ export function AppPage({
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
-      <MiniPlayer />
+      {showMiniPlayer ? <MiniPlayer /> : null}
     </SafeAreaView>
   );
 }
@@ -230,7 +237,7 @@ function MiniPlayer() {
 
   return (
     <View style={styles.playerContainer}>
-      <Pressable style={styles.playerInfo} onPress={() => router.push('/library')}>
+      <Pressable style={styles.playerInfo} onPress={() => router.push('/player')}>
         <View style={styles.playerArt}>
           <Text style={styles.playerArtMark}>♪</Text>
         </View>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton, AppPage, FormField, Notice } from '@/components/music-ui';
 import { usePlayer } from '@/context/player-context';
@@ -140,7 +140,11 @@ export default function SettingsScreen() {
         secureTextEntry
         value={apiKey}
       />
-      <Text style={styles.helpText}>The key is stored in iOS secure storage on this device.</Text>
+      <Text style={styles.helpText}>
+        {Platform.OS === 'web'
+          ? 'Settings are kept in this browser tab session and are not encrypted.'
+          : 'The key is stored in secure storage on this device.'}
+      </Text>
       {error ? <Notice error>{error}</Notice> : null}
       {saved ? <Notice>Settings saved. The service track list will refresh automatically.</Notice> : null}
       {storageError ? <Notice error>{storageError}</Notice> : null}
@@ -186,7 +190,7 @@ export default function SettingsScreen() {
         <Text style={styles.helpText}>
           Register this exact URI in your Spotify app. On iOS, its domain must also be set up as
           an Associated Domain (Universal Link) for this app. Save both values here before
-          connecting from the Liked tab. This app uses PKCE, so do not enter a client secret.
+          connecting from Library → Spotify. This app uses PKCE, so do not enter a client secret.
           See the mobile README for setup.
         </Text>
         {spotifyError ? <Notice error>{spotifyError}</Notice> : null}

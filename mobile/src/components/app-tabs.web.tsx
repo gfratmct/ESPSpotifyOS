@@ -1,96 +1,87 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+const colors = {
+  background: '#0A0D0B',
+  text: '#F4F7F4',
+  muted: '#99A59D',
+  green: '#B7F36B',
+  border: '#28332C',
+};
 
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+const icons: Record<string, string> = {
+  index: '⌂',
+  explore: '⌕',
+  player: '▶',
+  library: '↓',
+  settings: '⚙',
+};
 
-export default function AppTabs() {
+export default function AppTabsWeb() {
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
-          <TabTrigger name="index" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-          <TabTrigger name="library" href="/library" asChild>
-            <TabButton>Library</TabButton>
-          </TabTrigger>
-          <TabTrigger name="spotify" href="/spotify" asChild>
-            <TabButton>Liked</TabButton>
-          </TabTrigger>
-          <TabTrigger name="settings" href="/settings" asChild>
-            <TabButton>Settings</TabButton>
-          </TabTrigger>
-        </CustomTabList>
-      </TabList>
+    <Tabs
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarPosition: 'bottom',
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.label,
+        tabBarIcon: ({ color }) => (
+          <View style={[styles.iconWrap, route.name === 'player' && styles.playerIconWrap]}>
+            <Text
+              style={[
+                styles.icon,
+                { color: route.name === 'player' ? colors.background : color },
+                route.name === 'player' && styles.playerIcon,
+              ]}>
+              {icons[route.name] ?? '•'}
+            </Text>
+          </View>
+        ),
+      })}>
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
+      <Tabs.Screen name="player" options={{ title: 'Player' }} />
+      <Tabs.Screen name="library" options={{ title: 'Library' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
-  const { ref: _slotRef, ...pressableProps } = props;
-  return (
-    <Pressable {...pressableProps} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-export function CustomTabList(props: TabListProps) {
-  return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        {props.children}
-      </ThemedView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    bottom: 0,
-    padding: Spacing.three,
+  tabBar: {
+    height: 66,
+    paddingTop: 5,
+    paddingBottom: 4,
+    backgroundColor: colors.background,
+    borderTopColor: colors.border,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  iconWrap: {
+    width: 30,
+    height: 26,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+  icon: {
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
   },
-  pressed: {
-    opacity: 0.7,
+  playerIconWrap: {
+    width: 34,
+    height: 34,
+    marginTop: -4,
+    borderRadius: 17,
+    backgroundColor: colors.green,
   },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+  playerIcon: {
+    fontSize: 14,
+    lineHeight: 18,
   },
 });
