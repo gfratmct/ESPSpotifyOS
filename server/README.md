@@ -26,6 +26,8 @@ A working first version - list, import, and stream are wired end to end.
 ### HTTP Endpoints
 
 All endpoints require the API key (see [Authentication](#authentication)).
+The API allows cross-origin requests from any origin for `GET`, `POST`, and `OPTIONS`; API-key
+authentication still applies to track endpoints.
 
 | Method | Path                | Description                                              |
 |--------|---------------------|----------------------------------------------------------|
@@ -86,6 +88,28 @@ Or with explicit env vars:
 ```bash
 HOST=0.0.0.0 PORT=8081 go run ./cmd/entry
 ```
+
+### Docker
+
+Copy `.env.docker.example` to `.env.docker` and set `SECRET` to a private API key. Build and
+start the backend from the repository root:
+
+```bash
+cp server/.env.docker.example server/.env.docker
+./server/scripts/build.sh
+./server/scripts/run.sh
+```
+
+The build script creates `spacchiufy-services:latest`. The run script replaces the previous
+container named `spacchiufy-services` and publishes the service on port `8081`. Pass an env-file
+path and host port to override the run defaults:
+
+```bash
+./server/scripts/run.sh ./server/.env.docker 8082
+```
+
+SQLite data and downloaded tracks persist in `server/data/` and `server/storage/`. The container
+includes `yt-dlp` and `ffmpeg` for track search and downloads.
 
 A separate manual smoke-test binary (`./cmd/test`) checks for `yt-dlp`, searches, downloads a track, and prototype-streams it:
 

@@ -18,8 +18,11 @@ func NewServer(
 	config *config.Config,
 	logger *log.Logger,
 ) *Server {
+	router := gin.Default()
+	router.Use(allowCORS())
+
 	return &Server{
-		r:      gin.Default(),
+		r:      router,
 		logger: logger,
 		config: config,
 	}

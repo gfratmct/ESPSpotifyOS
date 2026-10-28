@@ -47,3 +47,45 @@ func TestRequireAPIKey(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowCORS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(allowCORS())
+	r.POST("/tracks", func(c *gin.Context) {
+		c.Status(http.StatusCreated)
+	})
+
+	t.Run("preflight permits mobile client headers", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodOptions, "/tracks", nil)
+		req.Header.Set("Origin", "http://localhost:8081")
+		req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		req.Header.Set("Access-Control-Request-Headers", "content-type,x-api-key")
+
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("got status %d, want %d", rec.Code, http.StatusNoContent)
+		}
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+			t.Fatalf("allow origin = %q, want *", got)
+		}
+		if got := rec.Header().Get("Access-Control-Allow-Headers"); got != "Content-Type, X-API-Key, Authorization" {
+			t.Fatalf("allow headers = %q", got)
+		}
+	})
+
+	t.Run("normal requests keep CORS headers", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/tracks", nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("got status %d, want %d", rec.Code, http.StatusCreated)
+		}
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+			t.Fatalf("allow origin = %q, want *", got)
+		}
+	})
+}
